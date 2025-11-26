@@ -3,6 +3,7 @@ options.csv.gz
 options.csv
 forwards.csv.gz
 forwards.csv
+interests.csv
 
 # Marimo
 __marimo__/
