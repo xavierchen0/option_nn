@@ -1,3 +1,5 @@
 # Datasets / outputs / models / intermediary files
 options.csv.gz
 options.csv
+# Marimo
+__marimo__/
