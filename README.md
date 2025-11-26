@@ -1,5 +1,6 @@
 # Project Guidelines
 1. Keep notebooks small and focused on a specific task or goal,
+2. All intermediary/final outputs, models, data should be reproducible via notebooks, or sent via Telegram.
 
 # Project Setup
 
