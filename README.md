@@ -1,3 +1,6 @@
+# Project Guidelines
+1. Keep notebooks small and focused on a specific task or goal,
+
 # Project Setup
 
 This project leverages `uv` for efficient project management and `marimo` for interactive notebooks.
