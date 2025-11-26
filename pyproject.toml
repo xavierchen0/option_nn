@@ -7,4 +7,7 @@ requires-python = ">=3.13"
 dependencies = [
     "pandas",
     "marimo",
+    "pyarrow>=22.0.0",
+    "matplotlib>=3.10.7",
+    "seaborn>=0.13.2",
 ]

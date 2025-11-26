@@ -1,3 +1,10 @@
 # Datasets / outputs / models / intermediary files
 options.csv.gz
 options.csv
+forwards.csv.gz
+forwards.csv
+interests.csv
+cleaned_data.parquet
+
+# Marimo
+__marimo__/
