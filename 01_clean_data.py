@@ -42,6 +42,9 @@ def data_sources():
 
     ## Interest Rates
     Interest Rates data is queried from OptionMetrics through WRDS [link](https://wrds-www.wharton.upenn.edu/pages/get-data/optionmetrics/ivy-db-us/market/zero-coupon-yield-curve/)
+
+    ## VIX
+    VIX data is queried from CBOE Options through WRDS [link](https://wrds-www.wharton.upenn.edu/pages/get-data/cboe-indexes/cboe-indexes-1/cboe-indexes/)
     """)
     return
 
@@ -73,6 +76,13 @@ def read_interests():
     interests = pd.read_csv(DATA_DIR / "interest.csv").sort_values(by="date")
     interests
     return (interests,)
+
+
+@app.cell
+def read_vix():
+    vix = pd.read_csv(DATA_DIR / "vix.csv").sort_values(by="Date")
+    vix
+    return (vix,)
 
 
 @app.cell(hide_code=True)
@@ -309,7 +319,7 @@ def clean_forwards(forwards):
         }
     )
 
-    print("Option's datatype check: ", "\n", forwards_tmp.dtypes, "\n")
+    print("Forward's datatype check: ", "\n", forwards_tmp.dtypes, "\n")
 
     # 3. Filter for specific dates
     forwards_date_mask = (forwards_tmp["date"] >= START_DATE) & (
@@ -378,6 +388,36 @@ def clean_interest(interests):
     return
 
 
+@app.cell(hide_code=True)
+def clean_vix_md():
+    mo.md(r"""
+    ## Clean VIX
+
+    Steps taken:
+    1. Keep necessary columns
+    2. Set the right dtypes
+    3. Change from percentage to decimal
+    """)
+
+
+@app.cell
+def clean_vix(vix):
+    # 1. Keep necessary columns
+    vix_tmp = vix.loc[:, ["Date", "vix"]].copy()
+
+    # 2. Set the right dtypes
+    vix_tmp["Date"] = pd.to_datetime(vix_tmp["Date"])
+
+    vix_tmp = vix_tmp.astype({"vix": "Float64"})
+
+    print("Vix's datatype check: ", "\n", vix_tmp.dtypes, "\n")
+
+    # 3. Change from percentage to decimal
+    vix_tmp["vix"] = vix_tmp["vix"] / 100
+
+    return vix_tmp
+
+
 @app.cell
 def get_rate_function(ql, to_ql_date, zc_series):
     def get_rate(current_date, days_to_expiry):
@@ -397,7 +437,7 @@ def get_rate_function(ql, to_ql_date, zc_series):
 
 
 @app.cell
-def plot_rate_curve(get_rate, pd):
+def plot_rate_curve(get_rate):
     def plot_curve(current_date, period=pd.DateOffset(years=5)):
         current_date = pd.to_datetime(current_date)
 
@@ -440,7 +480,7 @@ def merge_md():
 
 
 @app.cell
-def merge(forwards_tmp, options_tmp, get_rate):
+def merge(forwards_tmp, options_tmp, vix_tmp, get_rate):
     combined = options_tmp.merge(
         forwards_tmp,
         left_on=["date", "exdate", "am_settlement"],
@@ -448,8 +488,12 @@ def merge(forwards_tmp, options_tmp, get_rate):
         how="left",
     ).reset_index(drop=True)
 
+    combined = combined.merge(
+        vix_tmp, left_on="date", right_on="Date", how="left"
+    ).reset_index(drop=True)
+
     combined = combined.drop(
-        columns=["expiration", "am_settlement", "AMSettlement"]
+        columns=["expiration", "am_settlement", "AMSettlement", "Date"]
     ).sort_values(by="date")
 
     # 1. Compute risk-free rate
