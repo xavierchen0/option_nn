@@ -49,23 +49,23 @@ def read_md():
 
 @app.cell
 def read_options():
-    options = pd.read_csv(DATA_DIR / "options.csv")
+    options = pd.read_csv(DATA_DIR / "options.csv").sort_values(by="date")
     options
     return (options,)
 
 
 @app.cell
 def read_forwards():
-    forwards = pd.read_csv(DATA_DIR / "forwards.csv")
+    forwards = pd.read_csv(DATA_DIR / "forwards.csv").sort_values(by="date")
     forwards
     return (forwards,)
 
 
 @app.cell
 def read_interests():
-    interests = pd.read_csv(DATA_DIR / "interest.csv")
+    interests = pd.read_csv(DATA_DIR / "interest.csv").sort_values(by="date")
     interests
-    return
+    return (interests,)
 
 
 @app.cell(hide_code=True)
@@ -315,7 +315,7 @@ def merge_md():
     mo.md(r"""
     # Merge
 
-    Filter steps:
+    Steps taken:
     1. Compute moneyness $\frac{F_t}{K}$
     2. Compute log moneyness $\log \frac{F_t}{K}$
     """)
