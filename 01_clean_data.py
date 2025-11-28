@@ -4,14 +4,19 @@ __generated_with = "0.18.1"
 app = marimo.App()
 
 with app.setup:
+    from pathlib import Path
+
     import marimo as mo
-    import pandas as pd
-    import numpy as np
-    import seaborn as sns
     import matplotlib.pyplot as plt
+    import numpy as np
+    import pandas as pd
+    import seaborn as sns
 
     START_DATE = "2025-07-01"
     END_DATE = "2025-08-31"
+
+    DATA_DIR = Path("data")
+    DATA_DIR.mkdir(exist_ok=True)
 
 
 @app.cell(hide_code=True)
@@ -44,21 +49,21 @@ def read_md():
 
 @app.cell
 def read_options():
-    options = pd.read_csv("options.csv")
+    options = pd.read_csv(DATA_DIR / "options.csv")
     options
     return (options,)
 
 
 @app.cell
 def read_forwards():
-    forwards = pd.read_csv("forwards.csv")
+    forwards = pd.read_csv(DATA_DIR / "forwards.csv")
     forwards
     return (forwards,)
 
 
 @app.cell
 def read_interests():
-    interests = pd.read_csv("interests.csv")
+    interests = pd.read_csv(DATA_DIR / "interest.csv")
     interests
     return
 
@@ -566,7 +571,7 @@ def export_md():
 @app.cell
 def export(combined1):
     combined1.sort_values(by="date").reset_index(drop=True).to_parquet(
-        "cleaned_data.parquet"
+        DATA_DIR / "cleaned_data.parquet"
     )
     return
 
