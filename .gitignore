@@ -1,10 +1,6 @@
 # Datasets / outputs / models / intermediary files
-options.csv.gz
-options.csv
-forwards.csv.gz
-forwards.csv
-interests.csv
-cleaned_data.parquet
+data/
 
-# Marimo
+# Marimo, etc.
 __marimo__/
+__pycache__/

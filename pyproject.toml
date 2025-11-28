@@ -10,4 +10,6 @@ dependencies = [
     "pyarrow>=22.0.0",
     "matplotlib>=3.10.7",
     "seaborn>=0.13.2",
+    "quantlib>=1.40",
+    "lets-plot>=4.8.0",
 ]

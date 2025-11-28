@@ -4,14 +4,26 @@ __generated_with = "0.18.1"
 app = marimo.App()
 
 with app.setup:
+    from pathlib import Path
+
+    import lets_plot as lp
     import marimo as mo
-    import pandas as pd
-    import numpy as np
-    import seaborn as sns
     import matplotlib.pyplot as plt
+    import numpy as np
+    import pandas as pd
+    import QuantLib as ql
+    import seaborn as sns
 
     START_DATE = "2025-07-01"
     END_DATE = "2025-08-31"
+
+    DATA_DIR = Path("data")
+    DATA_DIR.mkdir(exist_ok=True)
+
+
+@app.function
+def to_ql_date(d):
+    return ql.Date(d.day, d.month, d.year)
 
 
 @app.cell(hide_code=True)
@@ -44,23 +56,23 @@ def read_md():
 
 @app.cell
 def read_options():
-    options = pd.read_csv("options.csv")
+    options = pd.read_csv(DATA_DIR / "options.csv").sort_values(by="date")
     options
     return (options,)
 
 
 @app.cell
 def read_forwards():
-    forwards = pd.read_csv("forwards.csv")
+    forwards = pd.read_csv(DATA_DIR / "forwards.csv").sort_values(by="date")
     forwards
     return (forwards,)
 
 
 @app.cell
 def read_interests():
-    interests = pd.read_csv("interests.csv")
+    interests = pd.read_csv(DATA_DIR / "interest.csv").sort_values(by="date")
     interests
-    return
+    return (interests,)
 
 
 @app.cell(hide_code=True)
@@ -79,6 +91,7 @@ def clean_options_md():
     8. Calculate mid option price
     9. (paper) Filter mid_price < 1/8
     10. Calculate days to expiry
+        10a. -1 day for am settled options
     11. (paper) Filter days_to_expiry > 120
 
     Notes:
@@ -230,6 +243,12 @@ def clean_options(options):
     ).dt.days
     options_tmp = options_tmp.astype({"days_to_expiry": "Int64"})
 
+    # 10a. -1 day for am settled options
+    am_settled_mask = options_tmp["am_settlement"] == 1
+    options_tmp.loc[am_settled_mask, "days_to_expiry"] = (
+        options_tmp.loc[am_settled_mask, "days_to_expiry"] - 1
+    )
+
     # 11. (paper) Filter days_to_expiry > 120
     print(
         "DF size before filtering out days_to_expiry > 120: ",
@@ -306,19 +325,122 @@ def clean_forwards(forwards):
 
 
 @app.cell(hide_code=True)
-def merge_md():
+def clean_interest_md():
     mo.md(r"""
-    # Merge
+    ## Clean interest
 
-    Filter steps:
-    1. Compute moneyness $\frac{F_t}{K}$
-    2. Compute log moneyness $\log \frac{F_t}{K}$
+    Steps taken:
+    1. Set the right dtypes
+    2. Find unique dates
+    3. Create array of QuantLib Zero Curve objects
+    4. For each unique date, fit the MonotonicCubicZeroCurve
     """)
     return
 
 
 @app.cell
-def merge(forwards_tmp, options_tmp):
+def clean_interest(interests):
+    interests_tmp = interests.copy()
+
+    # 1. Set the right dtypes
+    interests_tmp["date"] = pd.to_datetime(interests_tmp["date"])
+
+    interests_tmp = interests_tmp.astype({"days": "Int64", "rate": "Float64"})
+
+    # 2. Find unique dates
+    dates_idx = pd.Index(interests_tmp["date"].unique())
+
+    # 3. Create array of QuantLib Zero Curve objects
+    zc_series = pd.Series(
+        index=interests_tmp["date"].unique(), name="ZeroCurve", dtype="object"
+    )
+
+    # 4. For each unique date, fit the MonotonicCubicZeroCurve
+    for curve_date in dates_idx:
+        specific_date_mask = interests_tmp["date"] == curve_date
+        df_target = interests_tmp[specific_date_mask].copy()
+
+        base_rate = df_target.sort_values("date")["rate"].iloc[0]
+        base_row = pd.DataFrame([{"date": curve_date, "days": 0, "rate": base_rate}])
+        df_target = pd.concat([base_row, df_target], axis="rows").sort_values("days")
+
+        df_target["maturity"] = (
+            df_target["date"] + df_target["days"] * pd.Timedelta(days=1)
+        ).apply(to_ql_date)
+
+        zc = ql.MonotonicCubicZeroCurve(
+            df_target["maturity"].values,
+            df_target["rate"],
+            ql.Actual365Fixed(),
+            ql.UnitedStates(ql.UnitedStates.GovernmentBond),
+        )
+        zc_series.loc[curve_date] = zc
+    return
+
+
+@app.cell
+def get_rate_function(ql, to_ql_date, zc_series):
+    def get_rate(current_date, days_to_expiry):
+        return (
+            zc_series[current_date]
+            .zeroRate(
+                to_ql_date(current_date) + days_to_expiry,
+                ql.Actual365Fixed(),
+                ql.Continuous,
+                ql.NoFrequency,
+                True,
+            )
+            .rate()
+        )
+
+    return (get_rate,)
+
+
+@app.cell
+def plot_rate_curve(get_rate, pd):
+    def plot_curve(current_date, period=pd.DateOffset(years=5)):
+        current_date = pd.to_datetime(current_date)
+
+        date_range = pd.date_range(current_date, freq="D", end=current_date + period)
+        df_plot = pd.DataFrame(
+            np.arange(len(date_range)), index=date_range, columns=["days_to_expiry"]
+        )
+        df_plot["rate"] = df_plot.apply(
+            lambda x: get_rate(current_date, x["days_to_expiry"]), axis="columns"
+        )
+
+        # Plot
+        p = (
+            lp.ggplot(df_plot, lp.aes(x="days_to_expiry", y="rate"))
+            + lp.geom_line(color="#3f51b5", size=1.2)
+            + lp.ggtitle(f"Interpolated Zero Curve: {current_date.date()}")
+            + lp.labs(x="Days from Valuation", y="Zero Rate")
+            + lp.theme_minimal()
+        )
+
+        return p
+
+    # Render plot
+    p = plot_curve("2021-01-29")
+    p
+    return
+
+
+@app.cell(hide_code=True)
+def merge_md():
+    mo.md(r"""
+    # Merge
+
+    Steps taken:
+    1. Compute risk-free rate
+    2. Compute moneyness $\frac{F_t}{K}$
+    3. Compute log moneyness $\log \frac{F_t}{K}$
+    """)
+    return
+
+
+@app.cell
+def merge(forwards_tmp, options_tmp, get_rate):
     combined = options_tmp.merge(
         forwards_tmp,
         left_on=["date", "exdate", "am_settlement"],
@@ -330,10 +452,15 @@ def merge(forwards_tmp, options_tmp):
         columns=["expiration", "am_settlement", "AMSettlement"]
     ).sort_values(by="date")
 
-    # 1. Compute moneyness
+    # 1. Compute risk-free rate
+    combined["rate"] = combined.apply(
+        lambda x: get_rate(x["date"], x["days_to_expiry"]), axis="columns"
+    )
+
+    # 2. Compute moneyness
     combined["moneyness"] = combined["ForwardPrice"] / combined["strike_price"]
 
-    # 2. Compute log moneyness
+    # 3. Compute log moneyness
     combined["log_moneyness"] = np.log(
         combined["ForwardPrice"] / combined["strike_price"]
     )
@@ -388,6 +515,7 @@ def plot_volatility_smile_moneyness(combined):
 
     plt.tight_layout()
     plt.show()
+    return
 
 
 @app.cell(hide_code=True)
@@ -431,6 +559,7 @@ def plot_volatility_smile_log_moneyness(combined):
 
     plt.tight_layout()
     plt.show()
+    return
 
 
 @app.cell(hide_code=True)
@@ -439,6 +568,7 @@ def keep_atm_md():
     Filter steps:
     1. (paper) filter out options with moneyness > 1.1 or < 0.9
     """)
+    return
 
 
 @app.cell
@@ -465,8 +595,7 @@ def keep_atm(combined):
         len(combined1),
         "\n",
     )
-
-    return combined1
+    return (combined1,)
 
 
 @app.cell(hide_code=True)
@@ -510,6 +639,7 @@ def plot_volatility_smile_moneyness_filter(combined1):
 
     plt.tight_layout()
     plt.show()
+    return
 
 
 @app.cell(hide_code=True)
@@ -553,6 +683,7 @@ def plot_volatility_smile_log_moneyness_filter(combined1):
 
     plt.tight_layout()
     plt.show()
+    return
 
 
 @app.cell(hide_code=True)
@@ -566,8 +697,9 @@ def export_md():
 @app.cell
 def export(combined1):
     combined1.sort_values(by="date").reset_index(drop=True).to_parquet(
-        "cleaned_data.parquet"
+        DATA_DIR / "cleaned_data.parquet"
     )
+    combined1
     return
 
 
