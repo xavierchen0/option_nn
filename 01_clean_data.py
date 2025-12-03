@@ -549,11 +549,11 @@ def merge(forwards_tmp, options_tmp, vix_tmp, get_rate):
     is_otm_mask = combined["moneyness"] < 0.97
     combined.loc[is_otm_mask, "op_level"] = "otm"
 
-    is_atm_mask = (combined["moneyness"] >= 0.97) | (combined["moneyness"] < 1.03)
+    is_atm_mask = (combined["moneyness"] >= 0.97) & (combined["moneyness"] < 1.03)
     combined.loc[is_atm_mask, "op_level"] = "atm"
 
     is_itm_mask = combined["moneyness"] >= 1.03
-    combined.loc[is_otm_mask, "op_level"] = "itm"
+    combined.loc[is_itm_mask, "op_level"] = "itm"
 
     combined = combined.astype({"op_level": "category"})
 
