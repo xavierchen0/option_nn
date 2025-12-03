@@ -420,6 +420,7 @@ def clean_vix_md():
     1. Keep necessary columns
     2. Set the right dtypes
     3. Change from percentage to decimal
+    4. (paper) Used the VIX closing level of the previous day as the standard deviation parameter
     """)
 
 
@@ -437,6 +438,11 @@ def clean_vix(vix):
 
     # 3. Change from percentage to decimal
     vix_tmp["vix"] = vix_tmp["vix"] / 100
+
+    # 4. (paper) Used the VIX closing level of the previous day as the standard deviation parameter
+    vix_tmp["vix"] = vix_tmp["vix"].shift(1)
+
+    vix_tmp
 
     return vix_tmp
 
