@@ -11,6 +11,7 @@ with app.setup:
     import matplotlib.pyplot as plt
     import numpy as np
     import pandas as pd
+    import polars as pl
     import QuantLib as ql
     import seaborn as sns
 
@@ -59,28 +60,45 @@ def read_md():
 
 @app.cell
 def read_options():
-    options = pd.read_csv(DATA_DIR / "options.csv").sort_values(by="date")
+    # options = pd.read_csv(DATA_DIR / "options.csv").sort_values(by="date")
+    options = (
+        pl.read_csv(DATA_DIR / "options.csv")
+        .to_pandas(use_pyarrow_extension_array=True)
+        .sort_values(by="date")
+    )
     options
     return (options,)
 
 
 @app.cell
 def read_forwards():
-    forwards = pd.read_csv(DATA_DIR / "forwards.csv").sort_values(by="date")
+    forwards = (
+        pl.read_csv(DATA_DIR / "forwards.csv")
+        .to_pandas(use_pyarrow_extension_array=True)
+        .sort_values(by="date")
+    )
     forwards
     return (forwards,)
 
 
 @app.cell
 def read_interests():
-    interests = pd.read_csv(DATA_DIR / "interest.csv").sort_values(by="date")
+    interests = (
+        pl.read_csv(DATA_DIR / "interest.csv")
+        .to_pandas(use_pyarrow_extension_array=True)
+        .sort_values(by="date")
+    )
     interests
     return (interests,)
 
 
 @app.cell
 def read_vix():
-    vix = pd.read_csv(DATA_DIR / "vix.csv").sort_values(by="Date")
+    vix = (
+        pl.read_csv(DATA_DIR / "vix.csv")
+        .to_pandas(use_pyarrow_extension_array=True)
+        .sort_values(by="Date")
+    )
     vix
     return (vix,)
 
@@ -740,10 +758,16 @@ def export_md():
 
 @app.cell
 def export(combined1):
-    combined1.sort_values(by="date").reset_index(drop=True).to_parquet(
-        DATA_DIR / "cleaned_data.parquet"
+    df_export = pl.from_pandas(
+        (
+            combined1.sort_values(
+                by=["date", "cp_flag", "exdate", "strike_price"]
+            ).reset_index(drop=True)
+        ),
     )
-    combined1
+
+    df_export.write_parquet(DATA_DIR / "cleaned_data.parquet")
+    df_export
     return
 
 
