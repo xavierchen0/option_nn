@@ -493,6 +493,10 @@ def merge_md():
     1. Compute risk-free rate
     2. Compute moneyness $\frac{F_t}{K}$
     3. Compute log moneyness $\log \frac{F_t}{K}$
+    4. (paper) define ATM, OTM, ITM options
+        - OTM: $\frac{F_t}{K} < 0.97$
+        - ATM: $0.97 \leq \frac{F_t}{K} < 1.03$
+        - ITM: $\frac{F_t}{K} \geq 1.03$
     """)
     return
 
@@ -526,6 +530,21 @@ def merge(forwards_tmp, options_tmp, vix_tmp, get_rate):
     combined["log_moneyness"] = np.log(
         combined["ForwardPrice"] / combined["strike_price"]
     )
+
+    # 4. (paper) define ATM, OTM, ITM options
+    #     - OTM: $\frac{F_t}{K} < 0.97$
+    #     - ATM: $0.97 \leq \frac{F_t}{K} < 1.03$
+    #     - ITM: $\frac{F_t}{K} \geq 1.03$
+    is_otm_mask = combined["moneyness"] < 0.97
+    combined.loc[is_otm_mask, "op_level"] = "otm"
+
+    is_atm_mask = (combined["moneyness"] >= 0.97) | (combined["moneyness"] < 1.03)
+    combined.loc[is_atm_mask, "op_level"] = "atm"
+
+    is_itm_mask = combined["moneyness"] >= 1.03
+    combined.loc[is_otm_mask, "op_level"] = "itm"
+
+    combined = combined.astype({"op_level": "category"})
 
     # Check for rows with nulls
     print(
