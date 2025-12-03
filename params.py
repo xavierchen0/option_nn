@@ -1,6 +1,7 @@
 import polars as pl
+import pandas as pd
 
-OPTION_SCHEMA = {
+POLARS_SCHEMA = {
     # ID #
     "secid": pl.Int32,
     "cusip": pl.Int32,
@@ -46,8 +47,42 @@ OPTION_SCHEMA = {
 
     # DATETIME #
     "date": pl.Date,
+    "Date": pl.Date,
     "last_date": pl.Date,
     "exdate": pl.Date,
+    "expiration": pl.Date,
+
+    # FORWARDS #
+    "AMSettlement": pl.Int8,
+    "ForwardPrice": pl.Float32,
+
+    # INTEREST RATES #
+    "days": pl.Int32,
+    "rate": pl.Float32,
+
+    # VIX #
+    "vix": pl.Float32,
+    "vixh": pl.Float32,
+    "vixl": pl.Float32,
+    "vixo": pl.Float32,
+    "vxd": pl.Float32,
+    "vxdh": pl.Float32,
+    "vxdl": pl.Float32,
+    "vxdo": pl.Float32,
+    "vxn": pl.Float32,
+    "vxnh": pl.Float32,
+    "vxnl": pl.Float32,
+    "vxno": pl.Float32,
+    "vxo": pl.Float32,
+    "vxoh": pl.Float32,
+    "vxol": pl.Float32,
+    "vxoo": pl.Float32,
+
+    # NEW COLUMNS #
+    "mid_price": pl.Float32,
+    "days_to_expiry": pl.Int32,
+    "moneyness": pl.Float32,
+    "log_moneyness": pl.Float32,
 }
 
 OPT_ANALYSIS_COLS = [
@@ -63,32 +98,3 @@ OPT_ANALYSIS_COLS = [
     "open_interest",
 ]
 
-FORWARD_SCHEMA = {
-    # ID #
-    "secid": pl.Int32,
-    "cusip": pl.Int32,
-    "sic": pl.Int32,
-    "ticker": pl.String,
-    "exchange_d": pl.Int32,
-    "issuer": pl.String,
-    "issue_type": pl.Enum(["0", "A", "7", "F", "%", "S", "U"]),
-    "index_flag": pl.Int8,
-    "industry_group": pl.Int32,
-    "class": pl.String,
-  
-    # FORWARD TYPE #
-    "AMSettlement": pl.Int8,
-
-    # FORWARD DATA #
-    "ForwardPrice": pl.Float32,
-
-    # DATETIME #
-    "date": pl.Date,
-    "expiration": pl.Date,
-}
-
-INTEREST_RATE_SCHEMA = {
-  "date": pl.Date,
-  "days": pl.Int32,
-  "rate": pl.Float32
-}
