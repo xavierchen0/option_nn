@@ -14,6 +14,7 @@ with app.setup:
     import polars as pl
     import QuantLib as ql
     import seaborn as sns
+    from py_vollib.black import black
 
     START_DATE = "2025-07-01"
     END_DATE = "2025-08-31"
@@ -508,6 +509,7 @@ def merge_md():
         - OTM: $\frac{F_t}{K} < 0.97$
         - ATM: $0.97 \leq \frac{F_t}{K} < 1.03$
         - ITM: $\frac{F_t}{K} \geq 1.03$
+    5. Compute black's option price
     """)
     return
 
@@ -556,6 +558,20 @@ def merge(forwards_tmp, options_tmp, vix_tmp, get_rate):
     combined.loc[is_itm_mask, "op_level"] = "itm"
 
     combined = combined.astype({"op_level": "category"})
+
+    # 5. Compute black's option price
+    combined["black_price"] = combined.apply(
+        lambda row: black(
+            row["cp_flag"].lower(),
+            row["ForwardPrice"],
+            row["strike_price"],
+            row["days_to_expiry_years"],
+            row["rate"],
+            row["vix"],
+        ),
+        axis=1,
+    )
+    combined = combined.astype({"black_price": "Float64"})
 
     # Check for rows with nulls
     print(
@@ -687,6 +703,8 @@ def keep_atm(combined):
         len(combined1),
         "\n",
     )
+
+    combined1
     return (combined1,)
 
 
@@ -797,7 +815,9 @@ def export(combined1):
     )
 
     df_export.write_parquet(DATA_DIR / "cleaned_data.parquet")
+
     df_export
+
     return
 
 
