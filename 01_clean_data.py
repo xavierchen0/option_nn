@@ -97,7 +97,7 @@ def read_vix():
     vix = (
         pl.read_csv(DATA_DIR / "vix.csv")
         .to_pandas(use_pyarrow_extension_array=True)
-        .sort_values(by="date")
+        .sort_values(by="Date")
     )
     vix
     return (vix,)
