@@ -119,8 +119,9 @@ def clean_options_md():
     8. Calculate mid option price
     9. (paper) Filter mid_price < 1/8
     10. Calculate days to expiry
-        10a. -1 day for am settled options
-    11. (paper) Filter days_to_expiry > 120
+        - 10a. -1 day for am settled options
+    11. Calculate days to expiry in years
+    12. (paper) Filter days_to_expiry > 120
 
     Notes:
     1. They are all European options
@@ -277,7 +278,11 @@ def clean_options(options):
         options_tmp.loc[am_settled_mask, "days_to_expiry"] - 1
     )
 
-    # 11. (paper) Filter days_to_expiry > 120
+    # 11. Calculate days to expiry in years
+    options_tmp["days_to_expiry_years"] = options_tmp["days_to_expiry"] / 365
+    options_tmp = options_tmp.astype({"days_to_expiry_years": "Float64"})
+
+    # 12. (paper) Filter days_to_expiry > 120
     print(
         "DF size before filtering out days_to_expiry > 120: ",
         len(options_tmp),
