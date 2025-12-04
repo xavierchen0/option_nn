@@ -22,6 +22,9 @@ with app.setup():
     )
     print(f"Using {DEVICE} device")
 
+    BATCH_SIZE = 512
+    EPOCH_NUM = 1000
+
 
 @app.cell(hide_code=True)
 def prepare_data_md():
@@ -105,8 +108,6 @@ def prepare_data():
     ]
 
     # 4. Convert to torch
-    del X_tmp
-    del K_tmp
 
     X_train, X_val, X_test = (
         X_train.to_torch(return_type="tensor", dtype=pl.Float32),
@@ -124,9 +125,17 @@ def prepare_data():
         K_test.to_torch(return_type="tensor", dtype=pl.Float32),
     )
 
+    train_dataset = TensorDataset(X_train, y_train, K_train)
+    val_dataset = TensorDataset(X_val, y_val, K_val)
+    test_dataset = TensorDataset(X_test, y_test, K_test)
+
+    train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
+    val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE)
+    test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE)
+
     mo.vstack(ui_elems1, align="stretch")
 
-    return X_train, X_val, X_test, y_train, y_val, y_test, K_train, K_val, K_test
+    return train_loader, val_loader, test_loader
 
 
 if __name__ == "__main__":
