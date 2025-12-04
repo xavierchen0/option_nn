@@ -128,9 +128,16 @@ def prepare_data():
         K_test.to_torch(return_type="tensor", dtype=pl.Float32),
     )
 
+    X_train_val, y_train_val, K_train_val = (
+        X_tmp.to_torch(return_type="tensor", dtype=pl.Float32),
+        y_tmp.to_torch(return_type="tensor", dtype=pl.Float32),
+        K_tmp.to_torch(return_type="tensor", dtype=pl.Float32),
+    )
+
     train_dataset = TensorDataset(X_train, y_train, K_train)
     val_dataset = TensorDataset(X_val, y_val, K_val)
     test_dataset = TensorDataset(X_test, y_test, K_test)
+    train_val_dataset = TensorDataset(X_train_val, y_train_val, K_train_val)
 
     train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE)
@@ -145,6 +152,7 @@ def prepare_data():
         train_dataset,
         val_dataset,
         test_dataset,
+        train_val_dataset,
     )
 
 
@@ -295,12 +303,13 @@ def export_md():
 
 
 @app.cell
-def export(study, train_dataset, val_dataset, test_dataset):
+def export(study, train_dataset, val_dataset, test_dataset, train_val_dataset):
     joblib.dump(study, DATA_DIR / "study.pkl")
 
     torch.save(train_dataset, DATA_DIR / "train.pt")
     torch.save(val_dataset, DATA_DIR / "val.pt")
     torch.save(test_dataset, DATA_DIR / "test.pt")
+    torch.save(train_val_dataset, DATA_DIR / "train_val.pt")
 
 
 if __name__ == "__main__":
