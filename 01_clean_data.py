@@ -403,8 +403,8 @@ def clean_interest(interests):
         ).apply(to_ql_date)
 
         zc = ql.MonotonicCubicZeroCurve(
-            df_target["maturity"].values,
-            df_target["rate"],
+            df_target["maturity"].to_list(),
+            df_target["rate"].to_list(),
             ql.Actual365Fixed(),
             ql.UnitedStates(ql.UnitedStates.GovernmentBond),
         )
