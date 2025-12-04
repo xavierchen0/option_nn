@@ -14,6 +14,7 @@ with app.setup:
     import polars as pl
     import QuantLib as ql
     import seaborn as sns
+    from py_vollib.black import black
 
     START_DATE = "2025-07-01"
     END_DATE = "2025-08-31"
@@ -119,8 +120,9 @@ def clean_options_md():
     8. Calculate mid option price
     9. (paper) Filter mid_price < 1/8
     10. Calculate days to expiry
-        10a. -1 day for am settled options
-    11. (paper) Filter days_to_expiry > 120
+        - 10a. -1 day for am settled options
+    11. Calculate days to expiry in years
+    12. (paper) Filter days_to_expiry > 120
 
     Notes:
     1. They are all European options
@@ -277,7 +279,11 @@ def clean_options(options):
         options_tmp.loc[am_settled_mask, "days_to_expiry"] - 1
     )
 
-    # 11. (paper) Filter days_to_expiry > 120
+    # 11. Calculate days to expiry in years
+    options_tmp["years_to_expiry"] = options_tmp["days_to_expiry"] / 365
+    options_tmp = options_tmp.astype({"years_to_expiry": "Float64"})
+
+    # 12. (paper) Filter days_to_expiry > 120
     print(
         "DF size before filtering out days_to_expiry > 120: ",
         len(options_tmp),
@@ -415,6 +421,7 @@ def clean_vix_md():
     1. Keep necessary columns
     2. Set the right dtypes
     3. Change from percentage to decimal
+    4. (paper) Used the VIX closing level of the previous day as the standard deviation parameter
     """)
 
 
@@ -432,6 +439,12 @@ def clean_vix(vix):
 
     # 3. Change from percentage to decimal
     vix_tmp["vix"] = vix_tmp["vix"] / 100
+
+    # 4. (paper) Used the VIX closing level of the previous day as the standard deviation parameter
+    vix_tmp["prev_vix"] = vix_tmp["vix"].shift(1)
+    vix_tmp = vix_tmp.astype({"prev_vix": "Float64"})
+
+    vix_tmp
 
     return vix_tmp
 
@@ -497,6 +510,7 @@ def merge_md():
         - OTM: $\frac{F_t}{K} < 0.97$
         - ATM: $0.97 \leq \frac{F_t}{K} < 1.03$
         - ITM: $\frac{F_t}{K} \geq 1.03$
+    5. Compute black's option price
     """)
     return
 
@@ -538,13 +552,27 @@ def merge(forwards_tmp, options_tmp, vix_tmp, get_rate):
     is_otm_mask = combined["moneyness"] < 0.97
     combined.loc[is_otm_mask, "op_level"] = "otm"
 
-    is_atm_mask = (combined["moneyness"] >= 0.97) | (combined["moneyness"] < 1.03)
+    is_atm_mask = (combined["moneyness"] >= 0.97) & (combined["moneyness"] < 1.03)
     combined.loc[is_atm_mask, "op_level"] = "atm"
 
     is_itm_mask = combined["moneyness"] >= 1.03
-    combined.loc[is_otm_mask, "op_level"] = "itm"
+    combined.loc[is_itm_mask, "op_level"] = "itm"
 
     combined = combined.astype({"op_level": "category"})
+
+    # 5. Compute black's option price
+    combined["black_price"] = combined.apply(
+        lambda row: black(
+            row["cp_flag"].lower(),
+            row["ForwardPrice"],
+            row["strike_price"],
+            row["years_to_expiry"],
+            row["rate"],
+            row["vix"],
+        ),
+        axis=1,
+    )
+    combined = combined.astype({"black_price": "Float64"})
 
     # Check for rows with nulls
     print(
@@ -676,6 +704,8 @@ def keep_atm(combined):
         len(combined1),
         "\n",
     )
+
+    combined1
     return (combined1,)
 
 
@@ -786,7 +816,9 @@ def export(combined1):
     )
 
     df_export.write_parquet(DATA_DIR / "cleaned_data.parquet")
+
     df_export
+
     return
 
 
