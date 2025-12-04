@@ -568,7 +568,7 @@ def merge(forwards_tmp, options_tmp, vix_tmp, get_rate):
             row["strike_price"],
             row["years_to_expiry"],
             row["rate"],
-            row["vix"],
+            row["prev_vix"],
         ),
         axis=1,
     )
