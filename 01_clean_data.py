@@ -511,6 +511,8 @@ def merge_md():
         - ATM: $0.97 \leq \frac{F_t}{K} < 1.03$
         - ITM: $\frac{F_t}{K} \geq 1.03$
     5. Compute black's option price
+    6. (paper) Scale the Black's option price
+    7. (paper) Scale the Market option price
     """)
     return
 
@@ -578,6 +580,14 @@ def merge(forwards_tmp, options_tmp, vix_tmp, get_rate):
     print(
         "Check for rows with null values:", "\n", combined[combined.isna().any(axis=1)]
     )
+
+    # 6. (paper) Scale the Black's option price
+    combined["scaled_black_price"] = combined["black_price"] / combined["strike_price"]
+    combined = combined.astype({"scaled_black_price": "Float64"})
+
+    # 7. (paper) Scale the Market option price
+    combined["scaled_market_price"] = combined["mid_price"] / combined["strike_price"]
+    combined = combined.astype({"scaled_market_price": "Float64"})
 
     combined
     return (combined,)
