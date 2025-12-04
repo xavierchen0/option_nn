@@ -379,7 +379,7 @@ def clean_interest(interests):
     # 1. Set the right dtypes
     interests_tmp["date"] = pd.to_datetime(interests_tmp["date"])
 
-    interests_tmp = interests_tmp.astype({"days": "Int32", "rate": "Float32"})
+    interests_tmp = interests_tmp.astype({"days": "Int32", "rate": "Float64"})
 
     # 2. Find unique dates
     dates_idx = pd.Index(interests_tmp["date"].unique())
