@@ -1,94 +1,138 @@
 import polars as pl
+import pandas as pd
 
-OPTION_SCHEMA = {
+PANDAS_SCHEMA = {
     # ID #
-    "secid": pl.Int32,
-    "cusip": pl.Int32,
-    "sic": pl.Int32,
-    "symbol": pl.String,
-    "symbol_flag": pl.Int8,
-    "optionid": pl.Int32,
-    "ticker": pl.String,
-    "exchange_d": pl.Int32,
-    "issuer": pl.String,
-    "issue_type": pl.Enum(["0", "A", "7", "F", "%", "S", "U"]),
-    "index_flag": pl.Int8,
-    "industry_group": pl.Int32,
-    "class": pl.String,
-    "root": pl.String,
-    "suffix": pl.String,
+    "secid": pd.CategoricalDtype(),
+    "cusip": pd.CategoricalDtype(),
+    "sic": pd.CategoricalDtype(),
+    "symbol": pd.CategoricalDtype(),
+    "symbol_flag": pd.BooleanDtype(),
+    "optionid": pd.Int32Dtype(),
+    "ticker": pd.CategoricalDtype(),
+    "exchange_d": pd.CategoricalDtype(),
+    "issuer": pd.CategoricalDtype(),
+    "issue_type": pd.CategoricalDtype(["0", "A", "7", "F", "%", "S", "U"]),
+    "index_flag": pd.BooleanDtype(),
+    "industry_group": pd.CategoricalDtype(),
+    "class": pd.CategoricalDtype(),
+    "root": pd.CategoricalDtype(),
+    "suffix": pd.CategoricalDtype(),
   
     # OPTION TYPE #
-    "cp_flag": pl.Enum(["C", "P"]),
-    "exercise_style": pl.Enum(["A", "E", "?"]),
-    "div_convention": pl.Enum(["I", "F", "?"]),
-    "ss_flag": pl.Enum(["0", "1", "E"]),
-    "am_settlement": pl.Int8,
-    "am_set_flag": pl.Int8,
-    "contract_size": pl.Int32,
-    "expiry_indicator": pl.Enum(["w", "d", "m"]),
+    "cp_flag": pd.CategoricalDtype(["C", "P"]),
+    "exercise_style": pd.CategoricalDtype(["A", "E", "?"]),
+    "div_convention": pd.CategoricalDtype(["I", "F", "?"]),
+    "ss_flag": pd.CategoricalDtype(["0", "1", "E"]),
+    "am_settlement": pd.BooleanDtype(),
+    "am_set_flag": pd.BooleanDtype(),
+    "contract_size": pd.Int32Dtype(),
+    "expiry_indicator": pd.CategoricalDtype(["w", "d", "m"]),
 
     # OPTION DATA #
-    "strike_price": pl.Float32,
-    "best_bid": pl.Float32,
-    "best_offer": pl.Float32,
-    "impl_volatility": pl.Float32,
-    "volume": pl.Int32,
-    "open_interest": pl.Int32,
-    "forward_price": pl.Float32,
-    "cfadj": pl.Int32,
+    "strike_price": pd.Float32Dtype(),
+    "best_bid": pd.Float32Dtype(),
+    "best_offer": pd.Float32Dtype(),
+    "impl_volatility": pd.Float32Dtype(),
+    "volume": pd.Int32Dtype(),
+    "open_interest": pd.Int32Dtype(),
+    "forward_price": pd.Float32Dtype(),
+    "cfadj": pd.Int32Dtype(),
 
     # ADDITIONAL OPTION DATA #
-    "delta": pl.Float32,
-    "gamma": pl.Float32,
-    "vega": pl.Float32,
-    "theta": pl.Float32,
+    "delta": pd.Float32Dtype(),
+    "gamma": pd.Float32Dtype(),
+    "vega": pd.Float32Dtype(),
+    "theta": pd.Float32Dtype(),
 
     # DATETIME #
-    "date": pl.Date,
-    "last_date": pl.Date,
-    "exdate": pl.Date,
+    "date": ("datetime", "%Y-%m-%d"),
+    "Date": ("datetime", "%Y-%m-%d"),
+    "last_date": ("datetime", "%Y-%m-%d"),
+    "exdate": ("datetime", "%Y-%m-%d"),
+    "expiration": ("datetime", "%Y-%m-%d"),
+
+    # FORWARDS #
+    "AMSettlement": pd.BooleanDtype(),
+    "ForwardPrice": pd.Float32Dtype(),
+
+    # INTEREST RATES #
+    "days": pd.Int32Dtype(),
+    "rate": pd.Float32Dtype(),
+
+    # VIX #
+    "vix": pd.Float32Dtype(),
+    "vixh": pd.Float32Dtype(),
+    "vixl": pd.Float32Dtype(),
+    "vixo": pd.Float32Dtype(),
+    "vxd": pd.Float32Dtype(),
+    "vxdh": pd.Float32Dtype(),
+    "vxdl": pd.Float32Dtype(),
+    "vxdo": pd.Float32Dtype(),
+    "vxn": pd.Float32Dtype(),
+    "vxnh": pd.Float32Dtype(),
+    "vxnl": pd.Float32Dtype(),
+    "vxno": pd.Float32Dtype(),
+    "vxo": pd.Float32Dtype(),
+    "vxoh": pd.Float32Dtype(),
+    "vxol": pd.Float32Dtype(),
+    "vxoo": pd.Float32Dtype(),
+
+    # NEW COLUMNS #
+    "mid_price": pd.Float32Dtype(),
+    "days_to_expiry": pd.Int32Dtype(),
+    "moneyness": pd.Float32Dtype(),
+    "log_moneyness": pd.Float32Dtype(),
 }
 
-OPT_ANALYSIS_COLS = [
-    "date",
-    "last_date",
-    "exdate",
-    "cp_flag",
-    "strike_price",
-    "best_bid",
-    "best_offer",
-    "impl_volatility",
-    "volume",
-    "open_interest",
-]
+def read_csv_with_schema(filepath, schema=PANDAS_SCHEMA, **kwargs):
 
-FORWARD_SCHEMA = {
-    # ID #
-    "secid": pl.Int32,
-    "cusip": pl.Int32,
-    "sic": pl.Int32,
-    "ticker": pl.String,
-    "exchange_d": pl.Int32,
-    "issuer": pl.String,
-    "issue_type": pl.Enum(["0", "A", "7", "F", "%", "S", "U"]),
-    "index_flag": pl.Int8,
-    "industry_group": pl.Int32,
-    "class": pl.String,
-  
-    # FORWARD TYPE #
-    "AMSettlement": pl.Int8,
+    dtypes = {}
+    date_formats = {}
 
-    # FORWARD DATA #
-    "ForwardPrice": pl.Float32,
+    # Split dtypes into non-datetime and datetime, which are handled separately
+    for col, dtype in schema.items():
+        if isinstance(dtype, tuple) and dtype[0] == "datetime":
+            dtypes[col] = pd.StringDtype()
+            date_formats[col] = dtype[1]
+        else:
+            dtypes[col] = dtype
 
-    # DATETIME #
-    "date": pl.Date,
-    "expiration": pl.Date,
-}
+    # Read the file using the separated parameters
+    df = pd.read_csv(filepath, dtype=dtypes, **kwargs)
+    for date_col, date_format in date_formats.items():
+        if date_col in df.columns:
+            df[date_col] = pd.to_datetime(df[date_col], format=date_format)
 
-INTEREST_RATE_SCHEMA = {
-  "date": pl.Date,
-  "days": pl.Int32,
-  "rate": pl.Float32
-}
+    return df
+
+
+def enforce_dtypes(df, schema=PANDAS_SCHEMA):
+
+    dtypes_to_correct = {}
+    dt_cols_to_correct = {}
+
+    for col in df.columns:
+        expected_dtype = schema.get(col)
+
+        # Checks for different than expected dtypes
+        # Additional check for categories in categoricals if specified
+        if (isinstance(expected_dtype, pd.CategoricalDtype) and (expected_dtype.categories is not None)):
+            if (df.dtypes[col] != expected_dtype):
+                dtypes_to_correct[col] = expected_dtype
+        
+        # Separate datetime logic
+        elif (isinstance(expected_dtype, tuple) and (expected_dtype[0] == "datetime")):
+            if (not pd.api.types.is_datetime64_any_dtype(df.dtypes[col])):
+                dt_cols_to_correct[col] = expected_dtype[1]
+        
+        # Catch all else by type
+        else:
+            if not isinstance(df.dtypes[col], type(expected_dtype)):
+                dtypes_to_correct[col] = expected_dtype
+
+    df = df.astype(dtypes_to_correct)
+    for date_col, date_format in dt_cols_to_correct.items():
+        df[date_col] = pd.to_datetime(df[date_col], format=date_format)
+
+    return df

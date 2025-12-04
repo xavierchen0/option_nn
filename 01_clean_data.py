@@ -4,6 +4,7 @@ __generated_with = "0.18.1"
 app = marimo.App()
 
 with app.setup:
+    from params import enforce_dtypes
     from pathlib import Path
 
     import lets_plot as lp
@@ -61,46 +62,37 @@ def read_md():
 
 @app.cell
 def read_options():
-    # options = pd.read_csv(DATA_DIR / "options.csv").sort_values(by="date")
     options = (
-        pl.read_csv(DATA_DIR / "options.csv")
-        .to_pandas(use_pyarrow_extension_array=True)
-        .sort_values(by="date")
+        pd.read_parquet(DATA_DIR / "02_intermediate" / "options.parquet")
     )
-    options
+    options.sort_values(by="date")
     return (options,)
 
 
 @app.cell
 def read_forwards():
     forwards = (
-        pl.read_csv(DATA_DIR / "forwards.csv")
-        .to_pandas(use_pyarrow_extension_array=True)
-        .sort_values(by="date")
+        pd.read_parquet(DATA_DIR / "02_intermediate" / "forwards.parquet")
     )
-    forwards
+    forwards.sort_values(by="date")
     return (forwards,)
 
 
 @app.cell
 def read_interests():
     interests = (
-        pl.read_csv(DATA_DIR / "interest.csv")
-        .to_pandas(use_pyarrow_extension_array=True)
-        .sort_values(by="date")
+        pd.read_parquet(DATA_DIR / "02_intermediate" / "interest.parquet")
     )
-    interests
+    interests.sort_values(by="date")
     return (interests,)
 
 
 @app.cell
 def read_vix():
     vix = (
-        pl.read_csv(DATA_DIR / "vix.csv")
-        .to_pandas(use_pyarrow_extension_array=True)
-        .sort_values(by="Date")
+        pd.read_parquet(DATA_DIR / "02_intermediate" / "vix.parquet")
     )
-    vix
+    vix.sort_values(by="Date")
     return (vix,)
 
 
@@ -152,21 +144,7 @@ def clean_options(options):
     print("Option's columns: ", "\n", options_tmp.columns, "\n")
 
     # 2. Set the right dtypes
-    options_tmp["date"] = pd.to_datetime(options_tmp["date"])
-    options_tmp["exdate"] = pd.to_datetime(options_tmp["exdate"])
-
-    options_tmp = options_tmp.astype(
-        {
-            "cp_flag": "category",
-            "strike_price": "Int64",
-            "impl_volatility": "Float64",
-            "best_bid": "Float64",
-            "best_offer": "Float64",
-            "open_interest": "Int64",
-            "volume": "Int64",
-        }
-    )
-
+    options_tmp = enforce_dtypes(options_tmp)
     print("Option's datatype check: ", "\n", options_tmp.dtypes, "\n")
 
     # 3. Filter for specific dates
@@ -271,7 +249,6 @@ def clean_options(options):
     options_tmp["days_to_expiry"] = (
         options_tmp["exdate"] - options_tmp["date"]
     ).dt.days
-    options_tmp = options_tmp.astype({"days_to_expiry": "Int64"})
 
     # 10a. -1 day for am settled options
     am_settled_mask = options_tmp["am_settlement"] == 1
@@ -306,6 +283,7 @@ def clean_options(options):
         "\n",
     )
 
+    options_tmp = enforce_dtypes(options_tmp)
     options_tmp
     return (options_tmp,)
 
@@ -334,15 +312,7 @@ def clean_forwards(forwards):
     print("Forward's columns: ", "\n", forwards_tmp.columns, "\n")
 
     # 2. Set the right dtypes
-    forwards_tmp["date"] = pd.to_datetime(forwards_tmp["date"])
-    forwards_tmp["expiration"] = pd.to_datetime(forwards_tmp["expiration"])
-
-    forwards_tmp = forwards_tmp.astype(
-        {
-            "ForwardPrice": "Float64",
-        }
-    )
-
+    forwards_tmp = enforce_dtypes(forwards_tmp)
     print("Forward's datatype check: ", "\n", forwards_tmp.dtypes, "\n")
 
     # 3. Filter for specific dates
@@ -354,6 +324,7 @@ def clean_forwards(forwards):
     print("Maximum date: ", forwards_tmp["date"].max(), "\n")
     print("Minimum date: ", forwards_tmp["date"].min(), "\n")
 
+    forwards_tmp = enforce_dtypes(forwards_tmp)
     forwards_tmp
     return (forwards_tmp,)
 
@@ -377,9 +348,7 @@ def clean_interest(interests):
     interests_tmp = interests.copy()
 
     # 1. Set the right dtypes
-    interests_tmp["date"] = pd.to_datetime(interests_tmp["date"])
-
-    interests_tmp = interests_tmp.astype({"days": "Int64", "rate": "Float64"})
+    interests_tmp = enforce_dtypes(interests_tmp)
 
     # 2. Find unique dates
     dates_idx = pd.Index(interests_tmp["date"].unique())
@@ -409,6 +378,8 @@ def clean_interest(interests):
             ql.UnitedStates(ql.UnitedStates.GovernmentBond),
         )
         zc_series.loc[curve_date] = zc
+
+    interests_tmp
     return
 
 
@@ -431,10 +402,7 @@ def clean_vix(vix):
     vix_tmp = vix.loc[:, ["Date", "vix"]].copy()
 
     # 2. Set the right dtypes
-    vix_tmp["Date"] = pd.to_datetime(vix_tmp["Date"])
-
-    vix_tmp = vix_tmp.astype({"vix": "Float64"})
-
+    vix_tmp = enforce_dtypes(vix_tmp)
     print("Vix's datatype check: ", "\n", vix_tmp.dtypes, "\n")
 
     # 3. Change from percentage to decimal
@@ -446,11 +414,13 @@ def clean_vix(vix):
 
     vix_tmp
 
+    vix_tmp = enforce_dtypes(vix_tmp)
+    vix_tmp
     return vix_tmp
 
 
 @app.cell
-def get_rate_function(ql, to_ql_date, zc_series):
+def get_rate_function(zc_series):
     def get_rate(current_date, days_to_expiry):
         return (
             zc_series[current_date]
@@ -463,7 +433,6 @@ def get_rate_function(ql, to_ql_date, zc_series):
             )
             .rate()
         )
-
     return (get_rate,)
 
 
@@ -558,7 +527,7 @@ def merge(forwards_tmp, options_tmp, vix_tmp, get_rate):
     is_itm_mask = combined["moneyness"] >= 1.03
     combined.loc[is_itm_mask, "op_level"] = "itm"
 
-    combined = combined.astype({"op_level": "category"})
+    combined = enforce_dtypes(combined)
 
     # 5. Compute black's option price
     combined["black_price"] = combined.apply(
@@ -698,6 +667,7 @@ def keep_atm(combined):
     )
 
     combined1 = combined.loc[~moneyness_mask].copy()
+    combined1 = enforce_dtypes(combined1)
 
     print(
         "DF size after filtering moneyness > 1.1 or < 0.9: ",
@@ -807,18 +777,8 @@ def export_md():
 
 @app.cell
 def export(combined1):
-    df_export = pl.from_pandas(
-        (
-            combined1.sort_values(
-                by=["date", "cp_flag", "exdate", "strike_price"]
-            ).reset_index(drop=True)
-        ),
-    )
-
-    df_export.write_parquet(DATA_DIR / "cleaned_data.parquet")
-
-    df_export
-
+    combined1.to_parquet(DATA_DIR / "03_processed" / "cleaned_data.parquet")
+    combined1
     return
 
 
