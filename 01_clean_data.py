@@ -187,6 +187,7 @@ def clean_options(options):
 
     # 5. Divide strike by 1000; In OptionMetric, strike is x 1000
     options_tmp["strike_price"] = options_tmp["strike_price"] / 1000
+    options_tmp = options_tmp.astype({"strike_price": "Int32"})
 
     # 6. (paper) filter out no open interest and no volume
     print(
@@ -538,14 +539,17 @@ def merge(forwards_tmp, options_tmp, vix_tmp, get_rate):
     combined["rate"] = combined.apply(
         lambda x: get_rate(x["date"], x["days_to_expiry"]), axis="columns"
     )
+    combined = combined.astype({"rate": "Float32"})
 
     # 2. Compute moneyness
     combined["moneyness"] = combined["ForwardPrice"] / combined["strike_price"]
+    combined = combined.astype({"moneyness": "Float32"})
 
     # 3. Compute log moneyness
     combined["log_moneyness"] = np.log(
         combined["ForwardPrice"] / combined["strike_price"]
     )
+    combined = combined.astype({"log_moneyness": "Float32"})
 
     # 4. (paper) define ATM, OTM, ITM options
     #     - OTM: $\frac{F_t}{K} < 0.97$
