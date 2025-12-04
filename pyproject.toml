@@ -16,6 +16,7 @@ dependencies = [
     "py-lets-be-rational",
     "py-vollib",
     "polars>=1.35.2",
+    "torch>=2.9.1",
 ]
 
 [tool.uv.sources]
