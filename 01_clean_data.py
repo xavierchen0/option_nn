@@ -280,8 +280,8 @@ def clean_options(options):
     )
 
     # 11. Calculate days to expiry in years
-    options_tmp["days_to_expiry_years"] = options_tmp["days_to_expiry"] / 365
-    options_tmp = options_tmp.astype({"days_to_expiry_years": "Float64"})
+    options_tmp["years_to_expiry"] = options_tmp["days_to_expiry"] / 365
+    options_tmp = options_tmp.astype({"years_to_expiry": "Float64"})
 
     # 12. (paper) Filter days_to_expiry > 120
     print(
@@ -566,7 +566,7 @@ def merge(forwards_tmp, options_tmp, vix_tmp, get_rate):
             row["cp_flag"].lower(),
             row["ForwardPrice"],
             row["strike_price"],
-            row["days_to_expiry_years"],
+            row["years_to_expiry"],
             row["rate"],
             row["vix"],
         ),
