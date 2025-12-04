@@ -441,7 +441,8 @@ def clean_vix(vix):
     vix_tmp["vix"] = vix_tmp["vix"] / 100
 
     # 4. (paper) Used the VIX closing level of the previous day as the standard deviation parameter
-    vix_tmp["vix"] = vix_tmp["vix"].shift(1)
+    vix_tmp["prev_vix"] = vix_tmp["vix"].shift(1)
+    vix_tmp = vix_tmp.astype({"prev_vix": "Float64"})
 
     vix_tmp
 
