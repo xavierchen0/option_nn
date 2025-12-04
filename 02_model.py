@@ -10,6 +10,7 @@ with app.setup():
     import polars as pl
     import torch
     from sklearn.model_selection import train_test_split
+    from torch import nn
     from torch.utils.data import DataLoader, TensorDataset
 
     DATA_DIR = Path("data")
@@ -136,6 +137,39 @@ def prepare_data():
     mo.vstack(ui_elems1, align="stretch")
 
     return train_loader, val_loader, test_loader
+
+
+@app.cell(hide_code=True)
+def define_model_md():
+    mo.md(r"""
+    # Define Hybird Model Version 1
+    """)
+
+
+@app.class_definition
+class HybridModelV1(nn.Module):
+    def __init__(self, n_layers, n_units, dropout_rate):
+        super().__init__()
+
+        layers = []
+        input_dim = 5
+
+        for _ in range(n_layers):
+            layers.append(nn.Linear(input_dim, n_units))
+            layers.append(nn.Sigmoid())
+            layers.append(nn.Dropout(dropout_rate))
+            input_dim = n_units
+
+        self.layer_stack = nn.Sequential(*layers)
+
+        self.output_layer = nn.Linear(input_dim, 1)
+
+    def forward(self, x):
+        features = self.layer_stack(x)
+
+        out = self.output_layer(features)
+
+        return out
 
 
 if __name__ == "__main__":
