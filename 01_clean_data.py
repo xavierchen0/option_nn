@@ -158,12 +158,12 @@ def clean_options(options):
     options_tmp = options_tmp.astype(
         {
             "cp_flag": "category",
-            "strike_price": "Int64",
-            "impl_volatility": "Float64",
-            "best_bid": "Float64",
-            "best_offer": "Float64",
-            "open_interest": "Int64",
-            "volume": "Int64",
+            "strike_price": "Int32",
+            "impl_volatility": "Float32",
+            "best_bid": "Float32",
+            "best_offer": "Float32",
+            "open_interest": "Int32",
+            "volume": "Int32",
         }
     )
 
@@ -271,7 +271,7 @@ def clean_options(options):
     options_tmp["days_to_expiry"] = (
         options_tmp["exdate"] - options_tmp["date"]
     ).dt.days
-    options_tmp = options_tmp.astype({"days_to_expiry": "Int64"})
+    options_tmp = options_tmp.astype({"days_to_expiry": "Int32"})
 
     # 10a. -1 day for am settled options
     am_settled_mask = options_tmp["am_settlement"] == 1
@@ -281,7 +281,7 @@ def clean_options(options):
 
     # 11. Calculate days to expiry in years
     options_tmp["years_to_expiry"] = options_tmp["days_to_expiry"] / 365
-    options_tmp = options_tmp.astype({"years_to_expiry": "Float64"})
+    options_tmp = options_tmp.astype({"years_to_expiry": "Float32"})
 
     # 12. (paper) Filter days_to_expiry > 120
     print(
@@ -339,7 +339,7 @@ def clean_forwards(forwards):
 
     forwards_tmp = forwards_tmp.astype(
         {
-            "ForwardPrice": "Float64",
+            "ForwardPrice": "Float32",
         }
     )
 
@@ -379,7 +379,7 @@ def clean_interest(interests):
     # 1. Set the right dtypes
     interests_tmp["date"] = pd.to_datetime(interests_tmp["date"])
 
-    interests_tmp = interests_tmp.astype({"days": "Int64", "rate": "Float64"})
+    interests_tmp = interests_tmp.astype({"days": "Int32", "rate": "Float32"})
 
     # 2. Find unique dates
     dates_idx = pd.Index(interests_tmp["date"].unique())
@@ -433,7 +433,7 @@ def clean_vix(vix):
     # 2. Set the right dtypes
     vix_tmp["Date"] = pd.to_datetime(vix_tmp["Date"])
 
-    vix_tmp = vix_tmp.astype({"vix": "Float64"})
+    vix_tmp = vix_tmp.astype({"vix": "Float32"})
 
     print("Vix's datatype check: ", "\n", vix_tmp.dtypes, "\n")
 
@@ -442,7 +442,7 @@ def clean_vix(vix):
 
     # 4. (paper) Used the VIX closing level of the previous day as the standard deviation parameter
     vix_tmp["prev_vix"] = vix_tmp["vix"].shift(1)
-    vix_tmp = vix_tmp.astype({"prev_vix": "Float64"})
+    vix_tmp = vix_tmp.astype({"prev_vix": "Float32"})
 
     vix_tmp
 
@@ -574,7 +574,7 @@ def merge(forwards_tmp, options_tmp, vix_tmp, get_rate):
         ),
         axis=1,
     )
-    combined = combined.astype({"black_price": "Float64"})
+    combined = combined.astype({"black_price": "Float32"})
 
     # Check for rows with nulls
     print(
@@ -583,11 +583,11 @@ def merge(forwards_tmp, options_tmp, vix_tmp, get_rate):
 
     # 6. (paper) Scale the Black's option price
     combined["scaled_black_price"] = combined["black_price"] / combined["strike_price"]
-    combined = combined.astype({"scaled_black_price": "Float64"})
+    combined = combined.astype({"scaled_black_price": "Float32"})
 
     # 7. (paper) Scale the Market option price
     combined["scaled_market_price"] = combined["mid_price"] / combined["strike_price"]
-    combined = combined.astype({"scaled_market_price": "Float64"})
+    combined = combined.astype({"scaled_market_price": "Float32"})
 
     combined
     return (combined,)
