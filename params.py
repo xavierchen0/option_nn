@@ -83,6 +83,10 @@ PANDAS_SCHEMA = {
     "days_to_expiry": pd.Int32Dtype(),
     "moneyness": pd.Float32Dtype(),
     "log_moneyness": pd.Float32Dtype(),
+    "op_level": pd.CategoricalDtype(["otm", "itm", "atm"]),
+    "prev_vix": pd.Float32Dtype(),
+    "years_to_expiry": pd.Float32Dtype(),
+    "black_price": pd.Float32Dtype(),
 }
 
 def read_csv_with_schema(filepath, schema=PANDAS_SCHEMA, **kwargs):

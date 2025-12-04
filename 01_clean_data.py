@@ -258,7 +258,6 @@ def clean_options(options):
 
     # 11. Calculate days to expiry in years
     options_tmp["years_to_expiry"] = options_tmp["days_to_expiry"] / 365
-    options_tmp = options_tmp.astype({"years_to_expiry": "Float64"})
 
     # 12. (paper) Filter days_to_expiry > 120
     print(
@@ -410,9 +409,6 @@ def clean_vix(vix):
 
     # 4. (paper) Used the VIX closing level of the previous day as the standard deviation parameter
     vix_tmp["prev_vix"] = vix_tmp["vix"].shift(1)
-    vix_tmp = vix_tmp.astype({"prev_vix": "Float64"})
-
-    vix_tmp
 
     vix_tmp = enforce_dtypes(vix_tmp)
     vix_tmp
@@ -541,7 +537,7 @@ def merge(forwards_tmp, options_tmp, vix_tmp, get_rate):
         ),
         axis=1,
     )
-    combined = combined.astype({"black_price": "Float64"})
+    combined = enforce_dtypes(combined)
 
     # Check for rows with nulls
     print(
