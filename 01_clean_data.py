@@ -423,6 +423,7 @@ def clean_vix_md():
     2. Set the right dtypes
     3. Change from percentage to decimal
     4. (paper) Used the VIX closing level of the previous day as the standard deviation parameter
+    5. Forward fill prev_vix for null values
     """)
 
 
@@ -444,6 +445,10 @@ def clean_vix(vix):
     # 4. (paper) Used the VIX closing level of the previous day as the standard deviation parameter
     vix_tmp["prev_vix"] = vix_tmp["vix"].shift(1)
     vix_tmp = vix_tmp.astype({"prev_vix": "Float32"})
+
+    # 5. Forward fill prev_vix for null values
+    vix_tmp = vix_tmp.sort_values("Date")
+    vix_tmp["prev_vix"] = vix_tmp["prev_vix"].ffill()
 
     vix_tmp
 
