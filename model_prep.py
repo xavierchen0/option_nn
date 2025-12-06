@@ -4,6 +4,7 @@ app = marimo.App()
 
 
 with app.setup():
+    import copy
     from pathlib import Path
 
     import joblib
@@ -14,6 +15,7 @@ with app.setup():
     from sklearn.model_selection import train_test_split
     from torch import nn
     from torch.utils.data import DataLoader, TensorDataset
+    from tqdm.auto import tqdm
 
     DATA_DIR = Path("data")
     DATA_DIR.mkdir(exist_ok=True)
@@ -27,6 +29,9 @@ with app.setup():
 
     BATCH_SIZE = 512
     EPOCH_NUM = 1000
+
+    START_DATE = "2025-07-01"
+    END_DATE = "2025-08-31"
 
 
 @app.cell(hide_code=True)
@@ -45,7 +50,7 @@ def prepare_data_md():
 @app.cell
 def prepare_data():
     # 1. Read input dataset via polars
-    df = pl.read_parquet("data/cleaned_data.parquet")
+    df = pl.read_parquet(f"data/{START_DATE}_{END_DATE}_cleaned_data.parquet")
 
     # 2. (paper) Train validation test split chronologically: 80% train, 20% test
     feature_cols = [
@@ -189,6 +194,98 @@ class HybridModelV1(nn.Module):
         return out
 
 
+@app.function
+def train_model(training_specs, model, train_loader, val_loader):
+    model = model(
+        training_specs["n_layers"],
+        training_specs["n_units"],
+        training_specs["dropout_rate"],
+    ).to(training_specs["device"])
+    optimizer = torch.optim.Adam(model.parameters(), lr=training_specs["lr"])
+    criterion = nn.L1Loss()
+
+    train_loss_history = []
+    val_loss_history = []
+
+    best_val_loss = float("inf")
+    best_model_state = copy.deepcopy(model.state_dict())
+
+    print("=================================================")
+    print(f"Starting training on {training_specs['device']}")
+
+    epoch_pbar = tqdm(range(training_specs["epoch_num"]), desc="Training Progress")
+
+    for epoch in epoch_pbar:
+        # Training
+        model.train()
+        train_loss = 0.0
+
+        batch_pbar = tqdm(train_loader, desc=f"Epoch {epoch + 1}", leave=False)
+
+        for batch_X, batch_y, _ in batch_pbar:
+            batch_X, batch_y = (
+                batch_X.to(training_specs["device"]),
+                batch_y.to(training_specs["device"]),
+            )
+
+            optimizer.zero_grad()
+            preds = model(batch_X)
+            loss = criterion(preds, batch_y)
+            loss.backward()
+            optimizer.step()
+
+            train_loss += loss.item() * batch_X.size(0)
+
+        epoch_train_loss = train_loss / len(train_loader.dataset)
+        train_loss_history.append(epoch_train_loss)
+
+        # Validation
+        model.eval()
+        val_loss = 0.0
+
+        with torch.no_grad():
+            for batch_X, batch_y, _ in val_loader:
+                batch_X, batch_y = (
+                    batch_X.to(training_specs["device"]),
+                    batch_y.to(training_specs["device"]),
+                )
+
+                preds = model(batch_X)
+                loss = criterion(preds, batch_y)
+                val_loss += loss.item() * batch_X.size(0)
+
+        epoch_val_loss = val_loss / len(val_loader.dataset)
+        val_loss_history.append(epoch_val_loss)
+
+        # Checkpointing
+        if epoch_val_loss < best_val_loss:
+            best_val_loss = epoch_val_loss
+            best_model_state = copy.deepcopy(model.state_dict())
+
+        epoch_pbar.set_postfix(
+            {
+                "Train MAE": f"{epoch_train_loss:.5f}",
+                "Val MAE": f"{epoch_val_loss:.5f}",
+                "Best Val": f"{best_val_loss:.5f}",
+            }
+        )
+
+    print("=================================================")
+    print("Training Complete")
+    torch.save(
+        best_model_state,
+        training_specs["data_dir"]
+        / f"{training_specs['start_date']}_{training_specs['end_date']}_{training_specs['output_filename']}_weights.pt",
+    )
+
+    loss_df = pl.DataFrame({"train": train_loss_history, "val": val_loss_history})
+
+    loss_df.write_parquet(
+        training_specs["data_dir"]
+        / f"{training_specs['start_date']}_{training_specs['end_date']}_{training_specs['output_filename']}_loss_history.parquet"
+    )
+
+
 @app.cell(hide_code=True)
 def optuna_objective_md():
     mo.md(r"""
@@ -304,12 +401,12 @@ def export_md():
 
 @app.cell
 def export(study, train_dataset, val_dataset, test_dataset, train_val_dataset):
-    joblib.dump(study, DATA_DIR / "study.pkl")
+    joblib.dump(study, DATA_DIR / f"{START_DATE}_{END_DATE}_study.pkl")
 
-    torch.save(train_dataset, DATA_DIR / "train.pt")
-    torch.save(val_dataset, DATA_DIR / "val.pt")
-    torch.save(test_dataset, DATA_DIR / "test.pt")
-    torch.save(train_val_dataset, DATA_DIR / "train_val.pt")
+    torch.save(train_dataset, DATA_DIR / f"{START_DATE}_{END_DATE}_train.pt")
+    torch.save(val_dataset, DATA_DIR / f"{START_DATE}_{END_DATE}_val.pt")
+    torch.save(test_dataset, DATA_DIR / f"{START_DATE}_{END_DATE}_test.pt")
+    torch.save(train_val_dataset, DATA_DIR / f"{START_DATE}_{END_DATE}_train_val.pt")
 
 
 if __name__ == "__main__":

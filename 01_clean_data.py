@@ -829,7 +829,7 @@ def export(combined1):
         ),
     )
 
-    df_export.write_parquet(DATA_DIR / "cleaned_data.parquet")
+    df_export.write_parquet(DATA_DIR / f"{START_DATE}_{END_DATE}_cleaned_data.parquet")
 
     df_export
 
