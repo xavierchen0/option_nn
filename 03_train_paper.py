@@ -58,18 +58,41 @@ def train_md():
 
 
 @app.cell
-def train():
-    train_dataset = torch.load(
-        DATA_DIR / f"{START_DATE}_{END_DATE}_train.pt", weights_only=False
+def train_calls():
+    train_calls_dataset = torch.load(
+        DATA_DIR / f"{START_DATE}_{END_DATE}_train_calls.pt", weights_only=False
     )
-    val_dataset = torch.load(
-        DATA_DIR / f"{START_DATE}_{END_DATE}_val.pt", weights_only=False
+    val_calls_dataset = torch.load(
+        DATA_DIR / f"{START_DATE}_{END_DATE}_val_calls.pt", weights_only=False
     )
 
-    train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
-    val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE)
+    train_calls_loader = DataLoader(
+        train_calls_dataset, batch_size=BATCH_SIZE, shuffle=True
+    )
+    val_calls_loader = DataLoader(val_calls_dataset, batch_size=BATCH_SIZE)
 
-    train_model(training_specs, HybridModelV1, train_loader, val_loader)
+    training_specs["option_type"] = "calls"
+
+    train_model(training_specs, HybridModelV1, train_calls_loader, val_calls_loader)
+
+
+@app.cell
+def train_puts():
+    train_puts_dataset = torch.load(
+        DATA_DIR / f"{START_DATE}_{END_DATE}_train_puts.pt", weights_only=False
+    )
+    val_puts_dataset = torch.load(
+        DATA_DIR / f"{START_DATE}_{END_DATE}_val_puts.pt", weights_only=False
+    )
+
+    train_puts_loader = DataLoader(
+        train_puts_dataset, batch_size=BATCH_SIZE, shuffle=True
+    )
+    val_puts_loader = DataLoader(val_puts_dataset, batch_size=BATCH_SIZE)
+
+    training_specs["option_type"] = "puts"
+
+    train_model(training_specs, HybridModelV1, train_puts_loader, val_puts_loader)
 
 
 if __name__ == "__main__":

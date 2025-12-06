@@ -339,14 +339,14 @@ def train_model(training_specs, model, train_loader, val_loader):
     torch.save(
         best_model_state,
         training_specs["data_dir"]
-        / f"{training_specs['start_date']}_{training_specs['end_date']}_{training_specs['output_filename']}_weights.pt",
+        / f"{training_specs['start_date']}_{training_specs['end_date']}_{training_specs['output_filename']}_{training_specs['option_type']}_weights.pt",
     )
 
     loss_df = pl.DataFrame({"train": train_loss_history, "val": val_loss_history})
 
     loss_df.write_parquet(
         training_specs["data_dir"]
-        / f"{training_specs['start_date']}_{training_specs['end_date']}_{training_specs['output_filename']}_loss_history.parquet"
+        / f"{training_specs['start_date']}_{training_specs['end_date']}_{training_specs['output_filename']}_{training_specs['option_type']}_loss_history.parquet"
     )
 
 
