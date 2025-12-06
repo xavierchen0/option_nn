@@ -41,9 +41,10 @@ def prepare_data_md():
 
     Steps:
     1. Read input dataset via polars
-    2. (paper) Train validation test split chronologically: 80% train, 20% test
-    3. (paper) Train validation test split chronologically: 75% of train = train, 25% of train = validation
-    4. Convert to torch
+    2. (paper) separate call and put options
+    3. (paper) Train validation test split chronologically: 80% train, 20% test
+    4. (paper) Train validation test split chronologically: 75% of train = train, 25% of train = validation
+    5. Convert to torch
     """)
 
 
@@ -52,7 +53,11 @@ def prepare_data():
     # 1. Read input dataset via polars
     df = pl.read_parquet(f"data/{START_DATE}_{END_DATE}_cleaned_data.parquet")
 
-    # 2. (paper) Train validation test split chronologically: 80% train, 20% test
+    # 2. (paper) separate call and put options
+    df_calls = df.filter(pl.col("cp_flag") == "C")
+    df_puts = df.filter(pl.col("cp_flag") == "P")
+
+    # 3. (paper) Train validation test split chronologically: 80% train, 20% test
     feature_cols = [
         "moneyness",
         "rate",
@@ -63,101 +68,153 @@ def prepare_data():
     y_col = "scaled_market_price"
     k_col = "strike_price"
 
-    X = df.select(feature_cols)
+    X_calls = df_calls.select(feature_cols)
+    X_puts = df_puts.select(feature_cols)
 
-    y = df.select(y_col)
+    y_calls = df_calls.select(y_col)
+    y_puts = df_puts.select(y_col)
 
-    K = df.select(k_col)
+    K_calls = df_calls.select(k_col)
+    K_puts = df_puts.select(k_col)
 
-    X_tmp, X_test, y_tmp, y_test = train_test_split(X, y, test_size=0.2, shuffle=False)
-
-    split_idx = int(len(K) * 0.8)
-    K_tmp, K_test = K.head(split_idx), K.tail(len(K) - split_idx)
-
-    # 3. (paper) Train validation test split chronologically: 75% of train = train, 25% of train = validation
-    X_train, X_val, y_train, y_val = train_test_split(
-        X_tmp, y_tmp, test_size=0.25, shuffle=False
+    X_calls_tmp, X_calls_test, y_calls_tmp, y_calls_test = train_test_split(
+        X_calls, y_calls, test_size=0.2, shuffle=False
+    )
+    X_puts_tmp, X_puts_test, y_puts_tmp, y_puts_test = train_test_split(
+        X_puts, y_puts, test_size=0.2, shuffle=False
     )
 
-    split_idx = int(len(K_tmp) * 0.75)
-    K_train, K_val = K_tmp.head(split_idx), K_tmp.tail(len(K_tmp) - split_idx)
+    split_idx = int(len(K_calls) * 0.8)
+    K_calls_tmp, K_calls_test = (
+        K_calls.head(split_idx),
+        K_calls.tail(len(K_calls) - split_idx),
+    )
+    split_idx = int(len(K_puts) * 0.8)
+    K_puts_tmp, K_puts_test = (
+        K_puts.head(split_idx),
+        K_puts.tail(len(K_puts) - split_idx),
+    )
+
+    # 4. (paper) Train validation test split chronologically: 75% of train = train, 25% of train = validation
+    X_calls_train, X_calls_val, y_calls_train, y_calls_val = train_test_split(
+        X_calls_tmp, y_calls_tmp, test_size=0.25, shuffle=False
+    )
+    X_puts_train, X_puts_val, y_puts_train, y_puts_val = train_test_split(
+        X_puts_tmp, y_puts_tmp, test_size=0.25, shuffle=False
+    )
+
+    split_idx = int(len(K_calls_tmp) * 0.75)
+    K_calls_train, K_calls_val = (
+        K_calls_tmp.head(split_idx),
+        K_calls_tmp.tail(len(K_calls_tmp) - split_idx),
+    )
+    split_idx = int(len(K_puts_tmp) * 0.75)
+    K_puts_train, K_puts_val = (
+        K_puts_tmp.head(split_idx),
+        K_puts_tmp.tail(len(K_puts_tmp) - split_idx),
+    )
+
+    # 5. Convert to torch
+    X_calls_train, X_calls_val, X_calls_test = (
+        X_calls_train.to_torch(return_type="tensor", dtype=pl.Float32),
+        X_calls_val.to_torch(return_type="tensor", dtype=pl.Float32),
+        X_calls_test.to_torch(return_type="tensor", dtype=pl.Float32),
+    )
+    X_puts_train, X_puts_val, X_puts_test = (
+        X_puts_train.to_torch(return_type="tensor", dtype=pl.Float32),
+        X_puts_val.to_torch(return_type="tensor", dtype=pl.Float32),
+        X_puts_test.to_torch(return_type="tensor", dtype=pl.Float32),
+    )
+
+    y_calls_train, y_calls_val, y_calls_test = (
+        y_calls_train.to_torch(return_type="tensor", dtype=pl.Float32),
+        y_calls_val.to_torch(return_type="tensor", dtype=pl.Float32),
+        y_calls_test.to_torch(return_type="tensor", dtype=pl.Float32),
+    )
+    y_puts_train, y_puts_val, y_puts_test = (
+        y_puts_train.to_torch(return_type="tensor", dtype=pl.Float32),
+        y_puts_val.to_torch(return_type="tensor", dtype=pl.Float32),
+        y_puts_test.to_torch(return_type="tensor", dtype=pl.Float32),
+    )
+
+    K_calls_train, K_calls_val, K_calls_test = (
+        K_calls_train.to_torch(return_type="tensor", dtype=pl.Float32),
+        K_calls_val.to_torch(return_type="tensor", dtype=pl.Float32),
+        K_calls_test.to_torch(return_type="tensor", dtype=pl.Float32),
+    )
+    K_puts_train, K_puts_val, K_puts_test = (
+        K_puts_train.to_torch(return_type="tensor", dtype=pl.Float32),
+        K_puts_val.to_torch(return_type="tensor", dtype=pl.Float32),
+        K_puts_test.to_torch(return_type="tensor", dtype=pl.Float32),
+    )
+
+    X_calls_train_val, y_calls_train_val, K_calls_train_val = (
+        X_calls_tmp.to_torch(return_type="tensor", dtype=pl.Float32),
+        y_calls_tmp.to_torch(return_type="tensor", dtype=pl.Float32),
+        K_calls_tmp.to_torch(return_type="tensor", dtype=pl.Float32),
+    )
+    X_puts_train_val, y_puts_train_val, K_puts_train_val = (
+        X_puts_tmp.to_torch(return_type="tensor", dtype=pl.Float32),
+        y_puts_tmp.to_torch(return_type="tensor", dtype=pl.Float32),
+        K_puts_tmp.to_torch(return_type="tensor", dtype=pl.Float32),
+    )
+
+    train_calls_dataset = TensorDataset(X_calls_train, y_calls_train, K_calls_train)
+    val_calls_dataset = TensorDataset(X_calls_val, y_calls_val, K_calls_val)
+    test_calls_dataset = TensorDataset(X_calls_test, y_calls_test, K_calls_test)
+    train_val_calls_dataset = TensorDataset(
+        X_calls_train_val, y_calls_train_val, K_calls_train_val
+    )
+
+    train_puts_dataset = TensorDataset(X_puts_train, y_puts_train, K_puts_train)
+    val_puts_dataset = TensorDataset(X_puts_val, y_puts_val, K_puts_val)
+    test_puts_dataset = TensorDataset(X_puts_test, y_puts_test, K_puts_test)
+    train_val_puts_dataset = TensorDataset(
+        X_puts_train_val, y_puts_train_val, K_puts_train_val
+    )
+
+    train_calls_loader = DataLoader(
+        train_calls_dataset, batch_size=BATCH_SIZE, shuffle=True
+    )
+    val_calls_loader = DataLoader(val_calls_dataset, batch_size=BATCH_SIZE)
+    test_calls_loader = DataLoader(test_calls_dataset, batch_size=BATCH_SIZE)
+
+    train_puts_loader = DataLoader(
+        train_puts_dataset, batch_size=BATCH_SIZE, shuffle=True
+    )
+    val_puts_loader = DataLoader(val_puts_dataset, batch_size=BATCH_SIZE)
+    test_puts_loader = DataLoader(test_puts_dataset, batch_size=BATCH_SIZE)
 
     # Logging
     ui_elems1 = [
         mo.md("**Input DF:**"),
         df,
+        mo.md("**Calls DF:**"),
+        df_calls,
+        mo.md("**Puts DF:**"),
+        df_puts,
         mo.md(f"**Feature cols**: {feature_cols}"),
         mo.md(f"**Target col**: {y_col}"),
         mo.md(f"**Strike col**: {k_col}"),
-        mo.md(
-            f"**X_tmp**: Size = {len(X_tmp):,}, % of X = {round((len(X_tmp) / len(X)) * 100)}"
-        ),
-        mo.md(
-            f"**X_test**: Size = {len(X_test):,}, % of X = {round((len(X_test) / len(X)) * 100)}"
-        ),
-        mo.md(
-            f"**X_train**: Size = {len(X_train):,}, % of X_tmp = {round((len(X_train) / len(X_tmp)) * 100)}"
-        ),
-        mo.md(
-            f"**X_val**: Size = {len(X_val):,}, % of X_tmp = {round((len(X_val) / len(X_tmp)) * 100)}"
-        ),
-        mo.md(
-            f"**K_tmp**: Size = {len(K_tmp):,}, % of K = {round((len(K_tmp) / len(K)) * 100)}"
-        ),
-        mo.md(
-            f"**K_test**: Size = {len(K_test):,}, % of K = {round((len(K_test) / len(K)) * 100)}"
-        ),
-        mo.md(
-            f"**K_train**: Size = {len(K_train):,}, % of K_tmp = {round((len(K_train) / len(K_tmp)) * 100)}"
-        ),
-        mo.md(
-            f"**K_val**: Size = {len(K_val):,}, % of K_tmp = {round((len(K_val) / len(K_tmp)) * 100)}"
-        ),
     ]
-
-    # 4. Convert to torch
-
-    X_train, X_val, X_test = (
-        X_train.to_torch(return_type="tensor", dtype=pl.Float32),
-        X_val.to_torch(return_type="tensor", dtype=pl.Float32),
-        X_test.to_torch(return_type="tensor", dtype=pl.Float32),
-    )
-    y_train, y_val, y_test = (
-        y_train.to_torch(return_type="tensor", dtype=pl.Float32),
-        y_val.to_torch(return_type="tensor", dtype=pl.Float32),
-        y_test.to_torch(return_type="tensor", dtype=pl.Float32),
-    )
-    K_train, K_val, K_test = (
-        K_train.to_torch(return_type="tensor", dtype=pl.Float32),
-        K_val.to_torch(return_type="tensor", dtype=pl.Float32),
-        K_test.to_torch(return_type="tensor", dtype=pl.Float32),
-    )
-
-    X_train_val, y_train_val, K_train_val = (
-        X_tmp.to_torch(return_type="tensor", dtype=pl.Float32),
-        y_tmp.to_torch(return_type="tensor", dtype=pl.Float32),
-        K_tmp.to_torch(return_type="tensor", dtype=pl.Float32),
-    )
-
-    train_dataset = TensorDataset(X_train, y_train, K_train)
-    val_dataset = TensorDataset(X_val, y_val, K_val)
-    test_dataset = TensorDataset(X_test, y_test, K_test)
-    train_val_dataset = TensorDataset(X_train_val, y_train_val, K_train_val)
-
-    train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
-    val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE)
-    test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE)
 
     mo.vstack(ui_elems1, align="stretch")
 
     return (
-        train_loader,
-        val_loader,
-        test_loader,
-        train_dataset,
-        val_dataset,
-        test_dataset,
-        train_val_dataset,
+        train_calls_loader,
+        val_calls_loader,
+        test_calls_loader,
+        train_calls_dataset,
+        val_calls_dataset,
+        test_calls_dataset,
+        train_val_calls_dataset,
+        train_puts_loader,
+        val_puts_loader,
+        test_puts_loader,
+        train_puts_dataset,
+        val_puts_dataset,
+        test_puts_dataset,
+        train_val_puts_dataset,
     )
 
 
@@ -192,6 +249,13 @@ class HybridModelV1(nn.Module):
         out = self.output_layer(features)
 
         return out
+
+
+@app.cell(hide_code=True)
+def define_train_fn_md():
+    mo.md(r"""
+    # Define Training Script
+    """)
 
 
 @app.function
@@ -275,14 +339,14 @@ def train_model(training_specs, model, train_loader, val_loader):
     torch.save(
         best_model_state,
         training_specs["data_dir"]
-        / f"{training_specs['start_date']}_{training_specs['end_date']}_{training_specs['output_filename']}_weights.pt",
+        / f"{training_specs['start_date']}_{training_specs['end_date']}_{training_specs['output_filename']}_{training_specs['option_type']}_weights.pt",
     )
 
     loss_df = pl.DataFrame({"train": train_loss_history, "val": val_loss_history})
 
     loss_df.write_parquet(
         training_specs["data_dir"]
-        / f"{training_specs['start_date']}_{training_specs['end_date']}_{training_specs['output_filename']}_loss_history.parquet"
+        / f"{training_specs['start_date']}_{training_specs['end_date']}_{training_specs['output_filename']}_{training_specs['option_type']}_loss_history.parquet"
     )
 
 
@@ -294,8 +358,10 @@ def optuna_objective_md():
 
 
 @app.cell
-def optuna_objective(train_loader, val_loader):
-    def objective(trial):
+def optuna_objective(
+    train_calls_loader, val_calls_loader, train_puts_loader, val_puts_loader
+):
+    def objective_calls(trial):
         print("========================================================")
         print(f"Executing Trial {trial.number}")
 
@@ -315,7 +381,7 @@ def optuna_objective(train_loader, val_loader):
         for epoch in range(epoch_tune):
             model.train()
 
-            for batch_X, batch_y, _ in train_loader:
+            for batch_X, batch_y, _ in train_calls_loader:
                 batch_X = batch_X.to(DEVICE)
                 batch_y = batch_y.to(DEVICE)
 
@@ -331,7 +397,7 @@ def optuna_objective(train_loader, val_loader):
             steps = 0
 
             with torch.no_grad():
-                for batch_X, batch_y, _ in val_loader:
+                for batch_X, batch_y, _ in val_calls_loader:
                     batch_X = batch_X.to(DEVICE)
                     batch_y = batch_y.to(DEVICE)
 
@@ -348,7 +414,60 @@ def optuna_objective(train_loader, val_loader):
 
         return avg_val_loss
 
-    return objective
+    def objective_puts(trial):
+        print("========================================================")
+        print(f"Executing Trial {trial.number}")
+
+        # Optuna suggest values
+        n_layers = trial.suggest_int("n_layers", 1, 6)
+        n_units = trial.suggest_int("n_units", 20, 100)
+        dropout_rate = trial.suggest_float("dropout_rate", 0.01, 0.2)
+        lr = trial.suggest_float("lr", 1e-4, 1e-2, log=True)
+
+        # Model specification
+        model = HybridModelV1(n_layers, n_units, dropout_rate).to(DEVICE)
+        optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+        criterion = nn.L1Loss()
+
+        # Model optimisation
+        epoch_tune = 20
+        for epoch in range(epoch_tune):
+            model.train()
+
+            for batch_X, batch_y, _ in train_puts_loader:
+                batch_X = batch_X.to(DEVICE)
+                batch_y = batch_y.to(DEVICE)
+
+                optimizer.zero_grad()
+                prediction = model(batch_X)
+                loss = criterion(prediction, batch_y)
+                loss.backward()
+                optimizer.step()
+
+            # Optuna Validation and pruning
+            model.eval()
+            val_loss = 0.0
+            steps = 0
+
+            with torch.no_grad():
+                for batch_X, batch_y, _ in val_puts_loader:
+                    batch_X = batch_X.to(DEVICE)
+                    batch_y = batch_y.to(DEVICE)
+
+                    prediction = model(batch_X)
+                    val_loss += criterion(prediction, batch_y).item()
+                    steps += 1
+
+            avg_val_loss = val_loss / steps
+
+            trial.report(avg_val_loss, epoch)
+
+            if trial.should_prune():
+                raise optuna.TrialPruned()
+
+        return avg_val_loss
+
+    return objective_calls, objective_puts
 
 
 @app.cell(hide_code=True)
@@ -363,12 +482,23 @@ def tune_hyper_md():
 
 
 @app.cell
-def tune_hyper(objective):
-    study = optuna.create_study(direction="minimize", study_name="option_nn")
+def tune_hyper_calls(objective_calls):
+    study_calls = optuna.create_study(
+        direction="minimize", study_name="option_nn_calls"
+    )
 
-    study.optimize(objective, n_trials=50, n_jobs=-1)
+    study_calls.optimize(objective_calls, n_trials=50, n_jobs=-1)
 
-    return study
+    return study_calls
+
+
+@app.cell
+def tune_hyper_puts(objective_puts):
+    study_puts = optuna.create_study(direction="minimize", study_name="option_nn_puts")
+
+    study_puts.optimize(objective_puts, n_trials=50, n_jobs=-1)
+
+    return study_puts
 
 
 @app.cell(hide_code=True)
@@ -379,14 +509,28 @@ def tune_hyper_res_md():
 
 
 @app.cell
-def tune_hyper_res(study):
+def tune_hyper_res_calls(study_calls):
     mo.vstack(
         [
-            mo.md(f"Best params: {study.best_params}"),
-            mo.md(f"Best avg val loss: {study.best_value}"),
-            optuna.visualization.plot_optimization_history(study),
-            optuna.visualization.plot_timeline(study),
-            optuna.visualization.plot_param_importances(study),
+            mo.md(f"Best params: {study_calls.best_params}"),
+            mo.md(f"Best avg val loss: {study_calls.best_value}"),
+            optuna.visualization.plot_optimization_history(study_calls),
+            optuna.visualization.plot_timeline(study_calls),
+            optuna.visualization.plot_param_importances(study_calls),
+        ],
+        align="stretch",
+    )
+
+
+@app.cell
+def tune_hyper_res_puts(study_puts):
+    mo.vstack(
+        [
+            mo.md(f"Best params: {study_puts.best_params}"),
+            mo.md(f"Best avg val loss: {study_puts.best_value}"),
+            optuna.visualization.plot_optimization_history(study_puts),
+            optuna.visualization.plot_timeline(study_puts),
+            optuna.visualization.plot_param_importances(study_puts),
         ],
         align="stretch",
     )
@@ -400,13 +544,39 @@ def export_md():
 
 
 @app.cell
-def export(study, train_dataset, val_dataset, test_dataset, train_val_dataset):
-    joblib.dump(study, DATA_DIR / f"{START_DATE}_{END_DATE}_study.pkl")
+def export(
+    study_calls,
+    study_puts,
+    train_calls_dataset,
+    val_calls_dataset,
+    test_calls_dataset,
+    train_val_calls_dataset,
+    train_puts_dataset,
+    val_puts_dataset,
+    test_puts_dataset,
+    train_val_puts_dataset,
+):
+    joblib.dump(study_calls, DATA_DIR / f"{START_DATE}_{END_DATE}_study_calls.pkl")
+    joblib.dump(study_puts, DATA_DIR / f"{START_DATE}_{END_DATE}_study_puts.pkl")
 
-    torch.save(train_dataset, DATA_DIR / f"{START_DATE}_{END_DATE}_train.pt")
-    torch.save(val_dataset, DATA_DIR / f"{START_DATE}_{END_DATE}_val.pt")
-    torch.save(test_dataset, DATA_DIR / f"{START_DATE}_{END_DATE}_test.pt")
-    torch.save(train_val_dataset, DATA_DIR / f"{START_DATE}_{END_DATE}_train_val.pt")
+    torch.save(
+        train_calls_dataset, DATA_DIR / f"{START_DATE}_{END_DATE}_train_calls.pt"
+    )
+    torch.save(train_puts_dataset, DATA_DIR / f"{START_DATE}_{END_DATE}_train_puts.pt")
+
+    torch.save(val_calls_dataset, DATA_DIR / f"{START_DATE}_{END_DATE}_val_calls.pt")
+    torch.save(val_puts_dataset, DATA_DIR / f"{START_DATE}_{END_DATE}_val_puts.pt")
+
+    torch.save(test_calls_dataset, DATA_DIR / f"{START_DATE}_{END_DATE}_test_calls.pt")
+    torch.save(test_puts_dataset, DATA_DIR / f"{START_DATE}_{END_DATE}_test_puts.pt")
+
+    torch.save(
+        train_val_calls_dataset,
+        DATA_DIR / f"{START_DATE}_{END_DATE}_train_val_calls.pt",
+    )
+    torch.save(
+        train_val_puts_dataset, DATA_DIR / f"{START_DATE}_{END_DATE}_train_val_puts.pt"
+    )
 
 
 if __name__ == "__main__":

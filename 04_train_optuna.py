@@ -4,7 +4,9 @@ app = marimo.App()
 
 with app.setup:
     from pathlib import Path
+    import pprint
 
+    import joblib
     import marimo as mo
     import torch
     from torch.utils.data import DataLoader
@@ -20,29 +22,26 @@ with app.setup:
         else "cpu"
     )
 
-    # Training specifications
-    BATCH_SIZE = 512
-    EPOCH_NUM = 1000
-    LR = 0.001
-
-    # Model Hyperparameters
-    N_LAYERS = 2
-    N_UNITS = 40
-    DROPOUT_RATE = 0.1
-
-    # Output filename for the weights
-    OUTPUT_FILENAME = "paper"
-
     # Data date range
     START_DATE = "2025-07-01"
     END_DATE = "2025-08-31"
 
+    # Optuna
+    study_calls = joblib.load(DATA_DIR / f"{START_DATE}_{END_DATE}_study_calls.pkl")
+    study_puts = joblib.load(DATA_DIR / f"{START_DATE}_{END_DATE}_study_puts.pkl")
+
+    print("Study (calls):", "\n", study_calls.best_params)
+    print("Study (puts):", "\n", study_puts.best_params)
+
+    # Training specifications
+    BATCH_SIZE = 512
+    EPOCH_NUM = 1000
+
+    # Output filename for the weights
+    OUTPUT_FILENAME = "optuna"
+
     training_specs = {}
-    training_specs["n_layers"] = N_LAYERS
-    training_specs["n_units"] = N_UNITS
-    training_specs["dropout_rate"] = DROPOUT_RATE
     training_specs["device"] = DEVICE
-    training_specs["lr"] = LR
     training_specs["epoch_num"] = EPOCH_NUM
     training_specs["data_dir"] = DATA_DIR
     training_specs["output_filename"] = OUTPUT_FILENAME
@@ -72,6 +71,10 @@ def train_calls():
     val_calls_loader = DataLoader(val_calls_dataset, batch_size=BATCH_SIZE)
 
     training_specs["option_type"] = "calls"
+    training_specs["n_layers"] = study_calls.best_params["n_layers"]
+    training_specs["n_units"] = study_calls.best_params["n_units"]
+    training_specs["dropout_rate"] = study_calls.best_params["dropout_rate"]
+    training_specs["lr"] = study_calls.best_params["lr"]
 
     train_model(training_specs, HybridModelV1, train_calls_loader, val_calls_loader)
 
@@ -91,6 +94,10 @@ def train_puts():
     val_puts_loader = DataLoader(val_puts_dataset, batch_size=BATCH_SIZE)
 
     training_specs["option_type"] = "puts"
+    training_specs["n_layers"] = study_puts.best_params["n_layers"]
+    training_specs["n_units"] = study_puts.best_params["n_units"]
+    training_specs["dropout_rate"] = study_puts.best_params["dropout_rate"]
+    training_specs["lr"] = study_puts.best_params["lr"]
 
     train_model(training_specs, HybridModelV1, train_puts_loader, val_puts_loader)
 
