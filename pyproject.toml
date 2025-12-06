@@ -17,8 +17,15 @@ dependencies = [
     "py-vollib",
     "polars>=1.35.2",
     "torch>=2.9.1",
+    "scikit-learn>=1.7.2",
+    "optuna>=4.6.0",
+    "plotly>=6.5.0",
+    "joblib>=1.5.2",
 ]
 
 [tool.uv.sources]
 py-lets-be-rational = { git = "https://github.com/vollib/py_lets_be_rational.git" }
 py-vollib = { git = "https://github.com/vollib/py_vollib.git" }
+
+[tool.pyright]
+typeCheckingMode = "off"
