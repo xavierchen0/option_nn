@@ -30,8 +30,10 @@ with app.setup():
     BATCH_SIZE = 512
     EPOCH_NUM = 1000
 
-    START_DATE = "2025-07-01"
-    END_DATE = "2025-08-31"
+    # START_DATE = "2025-07-01"
+    # END_DATE = "2025-08-31"
+    START_DATE = "2020-09-01"
+    END_DATE = "2025-08-29"
 
 
 @app.cell(hide_code=True)
