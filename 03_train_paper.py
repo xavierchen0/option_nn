@@ -34,8 +34,10 @@ with app.setup:
     OUTPUT_FILENAME = "paper"
 
     # Data date range
-    START_DATE = "2025-07-01"
-    END_DATE = "2025-08-31"
+    # START_DATE = "2025-07-01"
+    # END_DATE = "2025-08-31"
+    START_DATE = "2020-09-01"
+    END_DATE = "2025-08-29"
 
     training_specs = {}
     training_specs["n_layers"] = N_LAYERS
