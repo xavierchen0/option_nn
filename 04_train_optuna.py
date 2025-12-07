@@ -23,8 +23,10 @@ with app.setup:
     )
 
     # Data date range
-    START_DATE = "2025-07-01"
-    END_DATE = "2025-08-31"
+    # START_DATE = "2025-07-01"
+    # END_DATE = "2025-08-31"
+    START_DATE = "2020-09-01"
+    END_DATE = "2025-08-29"
 
     # Optuna
     study_calls = joblib.load(DATA_DIR / f"{START_DATE}_{END_DATE}_study_calls.pkl")
