@@ -21,6 +21,7 @@ dependencies = [
     "optuna>=4.6.0",
     "plotly>=6.5.0",
     "joblib>=1.5.2",
+    "pysabr>=0.4.1",
 ]
 
 [tool.uv.sources]
