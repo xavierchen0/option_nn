@@ -238,6 +238,22 @@ with app.setup():
 
 
 @app.cell(hide_code=True)
+def test_preview_md():
+    mo.vstack(
+        [
+            mo.md("# Preview Test Data"),
+            mo.md(
+                f"Total test data size = {len(test_calls_data) + len(test_puts_data):,}"
+            ),
+            mo.md("Calls:"),
+            test_calls_data,
+            mo.md("Puts:"),
+            test_puts_data,
+        ]
+    )
+
+
+@app.cell(hide_code=True)
 def optuna_normal_viz_md():
     mo.md(r"""# Optuna Visualisation (Normal)""")
 
