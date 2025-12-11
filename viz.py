@@ -239,12 +239,20 @@ with app.setup():
 
 @app.cell(hide_code=True)
 def test_preview_md():
+    breakdown_df = (
+        pl.concat([test_calls_data, test_puts_data])
+        .group_by(["cp_flag", "op_level"])
+        .count()
+    ).sort(["cp_flag", "op_level"])
+
     mo.vstack(
         [
             mo.md("# Preview Test Data"),
             mo.md(
                 f"Total test data size = {len(test_calls_data) + len(test_puts_data):,}"
             ),
+            mo.md("Breakdown:"),
+            breakdown_df,
             mo.md("Calls:"),
             test_calls_data,
             mo.md("Puts:"),
