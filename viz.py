@@ -465,6 +465,8 @@ def test_analysis_2(results_df):
         + lp.geom_abline(slope=1, intercept=0, color="gray", linetype="dashed")
         + lp.facet_wrap(facets="model", ncol=2)
         + lp.ggtitle("Model Comparison for Calls on 2025-08-01")
+        + lp.theme(legend_position="none")
+        + lp.theme(plot_title=lp.element_text(hjust=0.5, face="bold", size=14))
     )
 
     results_df_puts_unpivot = results_df.filter(
@@ -493,6 +495,8 @@ def test_analysis_2(results_df):
         + lp.geom_abline(slope=1, intercept=0, color="gray", linetype="dashed")
         + lp.facet_wrap(facets="model", ncol=2)
         + lp.ggtitle("Model Comparison for Puts on 2025-08-01")
+        + lp.theme(legend_position="none")
+        + lp.theme(plot_title=lp.element_text(hjust=0.5, face="bold", size=14))
     )
 
     model_cols = [
@@ -535,6 +539,9 @@ def test_analysis_2(results_df):
         )
         .sort(["cp_flag", "op_level"])
     )
+
+    lp.ggsave(compare_models_calls_scatter, "compare_models_calls_scatter.png")
+    lp.ggsave(compare_models_puts_scatter, "compare_models_puts_scatter.png")
 
     mo.vstack(
         [
