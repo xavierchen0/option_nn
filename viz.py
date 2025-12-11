@@ -391,6 +391,7 @@ def test_analysis_1():
             "sabr_price": "SABR Model",
             "nn_paper_price": "Paper's Neural Network",
             "nn_sabr_price": "Our Extended Neural Network",
+            "mid_price": "Actual Market Option Price",
         }
     )
 
@@ -424,15 +425,17 @@ def test_analysis_2(results_df):
             "Paper's Neural Network",
             "Our Extended Neural Network",
         ],
-        index=["strike_price", "mid_price"],
+        index=["strike_price", "Actual Market Option Price"],
         variable_name="model",
-        value_name="predicted_price",
+        value_name="Predicted Price",
     )
 
     compare_models_calls_scatter = (
         lp.ggplot(
             data=results_df_calls_unpivot,
-            mapping=lp.aes(x="mid_price", y="predicted_price", color="model"),
+            mapping=lp.aes(
+                x="Actual Market Option Price", y="Predicted Price", color="model"
+            ),
         )
         + lp.geom_point(size=2, alpha=0.5)
         + lp.geom_abline(slope=1, intercept=0, color="gray", linetype="dashed")
@@ -450,15 +453,17 @@ def test_analysis_2(results_df):
             "Paper's Neural Network",
             "Our Extended Neural Network",
         ],
-        index=["strike_price", "mid_price"],
+        index=["strike_price", "Actual Market Option Price"],
         variable_name="model",
-        value_name="predicted_price",
+        value_name="Predicted Price",
     )
 
     compare_models_puts_scatter = (
         lp.ggplot(
             data=results_df_puts_unpivot,
-            mapping=lp.aes(x="mid_price", y="predicted_price", color="model"),
+            mapping=lp.aes(
+                x="Actual Market Option Price", y="Predicted Price", color="model"
+            ),
         )
         + lp.geom_point(size=2, alpha=0.5)
         + lp.geom_abline(slope=1, intercept=0, color="gray", linetype="dashed")
@@ -475,7 +480,10 @@ def test_analysis_2(results_df):
     compare_mae_table = (
         results_df.select(
             [
-                (pl.col(model) - pl.col("mid_price")).abs().mean().alias(model)
+                (pl.col(model) - pl.col("Actual Market Option Price"))
+                .abs()
+                .mean()
+                .alias(model)
                 for model in model_cols
             ]
         ).unpivot(
@@ -494,7 +502,10 @@ def test_analysis_2(results_df):
         results_df.group_by(["op_level", "cp_flag"])
         .agg(
             [
-                (pl.col(model) - pl.col("mid_price")).abs().mean().alias(f"{model}")
+                (pl.col(model) - pl.col("Actual Market Option Price"))
+                .abs()
+                .mean()
+                .alias(f"{model}")
                 for model in model_cols
             ]
         )
