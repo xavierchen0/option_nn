@@ -239,6 +239,16 @@ with app.setup():
     sabr_model_puts.load_state_dict(sabr_model_puts_weights)
     sabr_model_puts.to(DEVICE)
 
+    # ===============================================
+    # Train Loss History
+    # ===============================================
+    train_calls_history = pl.read_parquet(
+        DATA_DIR / f"{START_DATE}_{END_DATE}_optuna_calls_loss_history.parquet"
+    )
+    train_puts_history = pl.read_parquet(
+        DATA_DIR / f"{START_DATE}_{END_DATE}_optuna_puts_loss_history.parquet"
+    )
+
 
 @app.cell(hide_code=True)
 def test_preview_md():
@@ -320,6 +330,47 @@ def optuna_sabr_viz():
         [mo.md(r"**Calls:**"), _1, _2, _3, _4, mo.md(r"**Puts**"), _5, _6, _7, _8],
         align="stretch",
     )
+
+
+@app.cell(hide_code=True)
+def train_analysis_1_md():
+    mo.md("# Train Analysis")
+
+
+@app.cell
+def train_analysis_1():
+    loss_calls = train_calls_history.with_row_index(name="Epoch", offset=1).drop("val")
+    loss_puts = train_puts_history.with_row_index(name="Epoch", offset=1).drop("val")
+
+    loss_calls = loss_calls.rename({"train": "train_calls"})
+    loss_puts = loss_puts.rename({"train": "train_puts"})
+
+    df_combined = loss_calls.join(loss_puts, on="Epoch", how="inner")
+
+    df_long = df_combined.unpivot(
+        index=["Epoch"],
+        on=["train_calls", "train_puts"],
+        value_name="MAE",
+    )
+
+    df_long = df_long.with_columns(
+        pl.when(pl.col("variable").str.contains("calls"))
+        .then(pl.lit("Calls"))
+        .otherwise(pl.lit("Puts"))
+        .alias("Option Type"),
+    )
+
+    plot = (
+        lp.ggplot(df_long, lp.aes(x="Epoch", y="MAE"))
+        + lp.geom_line(color="#1f77b4", size=1.2)
+        + lp.facet_grid(x="Option Type")
+        + lp.ggtitle("Training Loss History")
+        + lp.ylab("Mean Absolute Error (MAE)")
+        + lp.theme_minimal()
+        + lp.theme(plot_title=lp.element_text(face="bold", hjust=0.5, size=20))
+    )
+    lp.ggsave(plot, "training history.png")
+    plot
 
 
 @app.cell(hide_code=True)
