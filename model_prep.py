@@ -53,7 +53,9 @@ def prepare_data_md():
 @app.cell
 def prepare_data():
     # 1. Read input dataset via polars
-    df = pl.read_parquet(f"data/{START_DATE}_{END_DATE}_cleaned_data.parquet")
+    df = pl.read_parquet(f"data/{START_DATE}_{END_DATE}_cleaned_data.parquet").sort(
+        ["date", "cp_flag", "exdate", "strike_price"]
+    )
 
     # 2. (paper) separate call and put options
     df_calls = df.filter(pl.col("cp_flag") == "C")

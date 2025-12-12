@@ -1,5 +1,6 @@
 # Datasets / outputs / models / intermediary files
 data/
+lets-plot-images/
 
 # Marimo, etc.
 __marimo__/
