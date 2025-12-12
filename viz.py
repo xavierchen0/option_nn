@@ -4,6 +4,7 @@ import marimo
 app = marimo.App()
 
 with app.setup():
+    import copy
     from pathlib import Path
 
     import joblib
@@ -11,10 +12,12 @@ with app.setup():
     import marimo as mo
     import optuna
     import polars as pl
+    import shap
     import torch
     from torch import nn
     from torch.utils.data import DataLoader
     from tqdm.auto import tqdm
+    import matplotlib.pyplot as plt
 
     from model_prep import HybridModelV1
     from model_prep_sabr import HybridModelV1_SABR
@@ -440,7 +443,7 @@ def test_analysis_1():
 @app.cell
 def test_analysis_2(results_df):
     results_df_calls_unpivot = results_df.filter(
-        (pl.col("date") == pl.datetime(year=2025, month=8, day=1))
+        (pl.col("date") == pl.datetime(year=2025, month=4, day=3))
         & (pl.col("cp_flag") == "C")
     ).unpivot(
         on=[
@@ -464,13 +467,13 @@ def test_analysis_2(results_df):
         + lp.geom_point(size=2, alpha=0.5)
         + lp.geom_abline(slope=1, intercept=0, color="gray", linetype="dashed")
         + lp.facet_wrap(facets="model", ncol=2)
-        + lp.ggtitle("Model Comparison for Calls on 2025-08-01")
+        + lp.ggtitle("Model Comparison for Calls on 2025-04-03")
         + lp.theme(legend_position="none")
         + lp.theme(plot_title=lp.element_text(hjust=0.5, face="bold", size=14))
     )
 
     results_df_puts_unpivot = results_df.filter(
-        (pl.col("date") == pl.datetime(year=2025, month=8, day=1))
+        (pl.col("date") == pl.datetime(year=2025, month=4, day=3))
         & (pl.col("cp_flag") == "P")
     ).unpivot(
         on=[
@@ -494,7 +497,7 @@ def test_analysis_2(results_df):
         + lp.geom_point(size=2, alpha=0.5)
         + lp.geom_abline(slope=1, intercept=0, color="gray", linetype="dashed")
         + lp.facet_wrap(facets="model", ncol=2)
-        + lp.ggtitle("Model Comparison for Puts on 2025-08-01")
+        + lp.ggtitle("Model Comparison for Puts on 2025-04-03")
         + lp.theme(legend_position="none")
         + lp.theme(plot_title=lp.element_text(hjust=0.5, face="bold", size=14))
     )
@@ -555,6 +558,84 @@ def test_analysis_2(results_df):
             compare_mae_moneyness_table,
         ]
     )
+
+
+@app.cell(hide_code=True)
+def shap_md():
+    mo.md("# Shap Analysis")
+
+
+@app.cell
+def run_shap_analysis():
+    plt.style.use("seaborn-v0_8-whitegrid")
+    sabr_model_calls.eval()
+    sabr_model_puts.eval()
+    paper_model_calls.eval()
+    paper_model_puts.eval()
+
+    specs = [
+        (
+            "Paper's Neural Network (Calls)",
+            paper_model_calls,
+            train_calls_loader,
+            test_calls_loader,
+        ),
+        (
+            "Paper's Neural Network (Puts)",
+            paper_model_puts,
+            train_puts_loader,
+            test_puts_loader,
+        ),
+        (
+            "Our Extended Neural Network (Calls)",
+            sabr_model_calls,
+            train_sabr_calls_loader,
+            test_sabr_calls_loader,
+        ),
+        (
+            "Our Extended Neural Network (Puts)",
+            sabr_model_puts,
+            train_sabr_puts_loader,
+            test_sabr_puts_loader,
+        ),
+    ]
+
+    base_features = [
+        "Moneyness",
+        "Risk-Free Rate",
+        "Previous Day VIX",
+        "Time to Expiry",
+        "Black Price Scaled",
+    ]
+    sabr_features = base_features + ["SABR Rho", "SABR Nu"]
+    for name, m, train_loader, test_loader in specs:
+        train_batch = next(iter(train_loader))
+        test_batch = next(iter(test_loader))
+
+        train_inputs, _, _ = train_batch
+        test_inputs, _, _ = test_batch
+
+        background = train_inputs  # has 512
+        test_samples = test_inputs[100:200]
+
+        background = background.to(DEVICE)
+        test_samples = test_samples.to(DEVICE)
+
+        explainer = shap.DeepExplainer(m, background)
+
+        shap_values = explainer.shap_values(test_samples)[:, :, 0]
+
+        current_features = sabr_features if shap_values.shape[1] == 7 else base_features
+
+        fig = plt.figure(figsize=(10, 5))
+        plt.title(f"SHAP Analysis: {name}", weight="bold")
+
+        shap.summary_plot(
+            shap_values,
+            test_samples.cpu().numpy(),
+            feature_names=current_features,
+            plot_type="bar",
+        )
 
 
 if __name__ == "__main__":
